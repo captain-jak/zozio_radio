@@ -39,6 +39,6 @@ output.icecast(
   port=8000,
   password="Olicout5000",
   mount="radio.mp3",
-  id="icecast_out", # ID de la sortie Icecast,
+  id="icecast_out", # ID de la sortie Icecast
   radio_finale
 )

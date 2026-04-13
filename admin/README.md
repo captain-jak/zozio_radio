@@ -10,7 +10,7 @@ Ce projet est destiné à zozio radio [ouitls administration de la radio].
 ## 🚀 Utilisation:
 
 Tout les fichiers sont obligatoirement au format mp3<br>
-Avant d'être injecté dans la radio, ils sont verifiées, et notamment leurs noms qui permettra de determiner
+Avant d'être injecté dans la radio, ils sont verifiées, et notamment leurs noms qui permettra de determiner les infos affichées, 
 lors du passage à la radio:<br>
 ARTISTE   -  TITRE -- ANNEE
 Le format du fichier est ARTISTE::TITRE::ANNEE  (le séparateur est "::"<br>
