@@ -1,0 +1,160 @@
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radio zozio</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #ffffff;
+            color: #333; /* Changé en sombre pour lisibilité sur fond blanc */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .player-card {
+            background: #ffffff;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 320px;
+        }
+        h1 { color: #00b38f; font-size: 1.5rem; margin-top: 10px; }
+        .status { color: #666; font-size: 0.9rem; margin-bottom: 15px; }
+        .live-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: red;
+            border-radius: 50%;
+            margin-right: 5px;
+            animation: blink 1s infinite;
+        }
+
+        #current-track { 
+    font-weight: bold; 
+    color: #d32f2f; 
+    font-size: 1.1em; 
+    display: block;    /* Force le retour à la ligne */
+    margin-top: 8px;  /* Ajoute un petit espace aéré entre le label et le titre */
+    line-height: 1.2; /* Pour que les titres longs sur deux lignes soient élégants */
+}
+
+#current-track { 
+    font-weight: bold; 
+    color: #d32f2f; 
+    font-size: 1.1em; 
+    display: block;    /* Force le retour à la ligne */
+    margin-top: 2px;  /* Espace minimal avec le label */
+    line-height: 1.1; /* Interligne serré pour les titres longs */
+}
+    </style>
+</head>
+<body>
+<div class="player-card">
+    <img src="ANGOULEME%20RADIO-small.png" alt="radio zozio" width="150">
+    <h1>Radio zozio</h1>
+    
+    <div class="status"> 
+    <span class="live-indicator"></span> EN DIRECT <br>
+    <span id="current-playlist" style="font-weight: bold;">Initialisation...</span>
+</div>
+
+
+<div id="now-playing">
+    <audio controls src="http://chantoiseau-radio.selfmicro.com:8000/radio.mp3"></audio>
+    <div class="label">Titre en cours</div>
+ <span id="current-track">Chargement...</span>
+</div>
+
+    <div style="margin-top: 15px;">
+        <div class="label">Durée du titre</div>
+        <div id="track-timer" class="value">00:00</div>
+    </div>
+
+    <p style="margin-top: 25px; font-size: 0.75rem; color: #999;">
+        Mise en onde par l'école de voile de Chante-oiseau
+    </p>
+</div>
+
+<script>
+    // Config : On a besoin des DEUX adresses
+    const statsUrl = "http://chantoiseau-radio.selfmicro.com:8000/status-json.xsl";
+    //const apiUrl = "radio_api.php?action=queue"; // Pour l'animateur
+    const apiUrl = "http://chantoiseau-radio.selfmicro.com/radio_api.php?action=queue";
+
+    let lastTitle = "";
+    let secondsElapsed = 0;
+
+    // Timer qui compte les secondes
+    setInterval(() => {
+        secondsElapsed++;
+        document.getElementById('track-timer').innerText = formatTime(secondsElapsed);
+    }, 1000);
+
+    function formatTime(secs) {
+        let mins = Math.floor(secs / 60);
+        let rest = secs % 60;
+        return `${mins.toString().padStart(2, '0')}:${rest.toString().padStart(2, '0')}`;
+    }
+
+    async function updateMetadata() {
+        try {
+            // 1. On récupère le TITRE via Icecast
+            const iceResponse = await fetch(statsUrl);
+            const iceData = await iceResponse.json();
+            
+            let source = iceData.icestats.source;
+            let title = "Musique en cours...";
+            let duration = 0; // Durée en secondes
+            
+            // Extraction des infos selon le format (Array ou Object)
+            let s = Array.isArray(source) ? source.find(src => src.listenurl.includes("/radio.mp3")) : source;
+
+            if (Array.isArray(source)) {
+                const s = source.find(src => src.listenurl.includes("/radio.mp3"));
+                title = s ? s.title : title;
+            } else {
+                title = source.title;
+            }
+
+            // Si le titre a changé, on remet le compteur à zéro
+            if (title !== lastTitle) {
+                secondsElapsed = 0;
+                lastTitle = title;
+            }
+            document.getElementById('current-track').innerText = title;
+
+            // 2. On récupère l'ANIMATEUR via ton API PHP
+            const apiResponse = await fetch(apiUrl);
+            const apiData = await apiResponse.json();
+            
+            // On nettoie la valeur brute pour le test
+            const valRaw = (apiData.playlist || "tous").toLowerCase().trim();
+            const playlistElement = document.getElementById('current-playlist');
+
+            if (valRaw === "onair") {
+                // Message quand personne n'est sélectionné en particulier
+                playlistElement.innerText = "le meilleur des chants de zozios";
+                playlistElement.style.color = "#00b38f"; // On peut même changer la couleur en vert
+            } else {
+                // On reprend la valeur et on met la 1ère lettre en majuscule
+                const nomFormate = valRaw.charAt(0).toUpperCase() + valRaw.slice(1);
+                playlistElement.innerText = `C'est ${nomFormate} qui passe les disques`;
+                playlistElement.style.color = "#ff5722";
+            }
+            
+        } catch (error) {
+            console.error("Erreur de mise à jour:", error);
+        }
+    }
+
+    // Mise à jour toutes les 10 secondes
+    setInterval(updateMetadata, 10000);
+    updateMetadata(); 
+</script>
+</body>
+</html>

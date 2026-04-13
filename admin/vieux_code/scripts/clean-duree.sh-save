@@ -1,0 +1,176 @@
+#!/bin/bash
+
+#/-------------------------------------------------------------------------------------------------------------------------
+# Ce script va calculer la durèe totale des fichiers MP3 dans le répertoire BASE_DIR
+# cas N° 1 = duree trop longue  ==> Déplacement dans repertoire DIR_DUREE_TROP_LONG pour être retravaillé -- affichage en rouge
+# cas N° 2 = durtee trop courte  ==> Avertissement  -- affichage avertissement
+# cas N° 3 = duree pas reconnue ou nulle  ==> Déplacement dans repertoire DIR_DUREE_TROP_LONG pour être retravaillé -- affichage en rouge
+# cas N° 4 = duree est conforme
+#/-------------------------------------------------------------------------------------------------------------------------
+
+SEUIL_X=1200  # seuil supérieur en secondes
+SEUIL_Y=30  # seuil inférieur en secondes
+DIR_DUREE_TROP_LONG="/media/enjoy/Data/musique/xx-NON-CONFORME"
+DIR_ORIGINE="/media/enjoy/Data/musique/zozio radio/Musique librairie"
+
+# si AFFICHAGE non vide = affiche tout les fichiers
+AFFICHAGE="ok"
+# si DEBUG vide = pas d'affichage messages de debugging 
+DEBUG=""
+
+# Dossier contenant les MP3
+read -e -p "📂 Glissez-déposez le dossier ici (ou tapez son chemin) : " DIR_BASE
+
+total_sec=0
+ORANGE='\033[0;33m'
+ORANGE_FLASH='\033[1;5;33m'
+ROUGE='\033[0;31m'
+ROUGE_FLASH='\033[1;5;31m'
+VERT='\033[0;32m'
+VERT_FLASH='\033[1;5;32m'
+RAZ='\033[0m' # Rétablit la couleur par défaut
+
+# =============================================================================================
+#                    LES              FONCTIONS 
+# =============================================================================================
+
+to_seconds() {
+    local duree="$1"
+    lefichier="$2"
+    duree=$(echo "$duree" | sed 's/[^0-9:]//g')
+    local heures=0 minutes=0 secondes=0 secondes_totales=0
+    IFS=':' read -r -a parties <<< "$duree"
+    local nb_elements=${#parties[@]}
+    if [ "$nb_elements" -eq 3 ]; then
+        heures="${parties[0]}"
+        minutes="${parties[1]}"
+        secondes="${parties[2]}"
+    elif [ "$nb_elements" -eq 2 ]; then
+        minutes="${parties[0]}"
+        secondes="${parties[1]}"
+    else
+        secondes="${parties[0]}"
+        sec=$(convertir_S_en_HMS "$secondes")
+    fi
+    heures=$((10#${heures:-0}))
+    minutes=$((10#${minutes:-0}))
+    secondes=$((10#${secondes:-0}))
+    secondes_totales=$(( heures * 3600 + minutes * 60 + secondes ))
+    echo "$secondes_totales"
+}
+
+convertir_S_en_HMS() {
+    local secondes_totales=$1
+    secondes_totales=$(echo "$secondes_totales" | tr -dc '0-9')
+    [[ -z "$secondes_totales" ]] && secondes_totales=0
+    local h=$(( secondes_totales / 3600 ))
+    local m=$(( (secondes_totales % 3600) / 60 ))
+    local s=$(( secondes_totales % 60 ))
+    printf "%02d:%02d:%02d\n" "$h" "$m" "$s"
+}
+
+detect_duree() {
+    local fichier_recu="$1"
+    local laduree=""
+    local ensec=0
+    local source="mid3v2"
+    laduree=$(mid3v2 --list "$fichier_recu" | grep -a "^TXXX=duration=" | cut -d= -f3)
+    if [[ -z "$laduree" || "$laduree" -lt 1 || "$laduree" -gt "$SEUIL_X" ]]; then
+        source="ffprobe"
+        laduree=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$fichier_recu" | awk '{print int($1)}')
+        mid3v2 --TXXX "duration:$laduree" "$fichier_recu"
+    fi
+    ensec=$(to_seconds "$laduree" "$fichier_recu")
+    echo $ensec $source
+}
+
+deplace_fichier() {
+    local fichier_recu="$1"
+    dossier_seul=$(dirname "$fichier_recu")
+    motif="$DIR_ORIGINE"
+    dir_nettoye="${dossier_seul#$motif}"
+
+    echo -e "\n✅ $DIR_DUREE_TROP_LONG$dir_nettoye"
+    mkdir -p "$DIR_DUREE_TROP_LONG$dir_nettoye"
+    cp  "$fichier_recu" "$DIR_DUREE_TROP_LONG$dir_nettoye/"
+    
+    if [ $? -eq 0 ]; then
+        chemin_absolu="$DIR_DUREE_TROP_LONG$dir_nettoye"
+        echo "$chemin_absolu"
+    else
+        echo -e "\n❌ Erreur : Échec de la copie de $fichier_recu"
+    fi
+    local chemin_real="$(realpath "$DIR_DUREE_TROP_LONG/$dir_nettoye/$(basename "$fichier_recu")")"
+    [[ -n "$DEBUG" ]] && echo -e "     ⚡$LINENO:deplace_fichier : ${ROUGE_FLASH}==> $chemin_real${RAZ}" >&2
+    echo "$chemin_real"
+}
+
+inject_duree() {
+    local fichier_recu="$1"
+    resultat=( $(detect_duree "$fichier_recu") )
+    local laduree="${resultat[0]}"
+    local lasource="${resultat[1]}"
+    
+    if [[ -n "$laduree" ]]; then
+        if [[ "$laduree" -gt 1 && "$laduree" -lt "$SEUIL_X" && $lasource == "ffprobe" ]]; then
+            echo -e "$LINENO:inject_duree: ${VERT}✔${RAZ} Durée détectée : ${VERT}$laduree${RAZ}s." >&2
+            mid3v2 --TXXX "duration:$laduree" "$fichier_recu"
+        fi
+        echo $laduree
+    else
+        new_fichier=$(deplace_fichier "$fichier_recu")
+    fi
+}
+
+# =============================================================================================
+#                                                      PROGRAMME PRINCIPAL
+# =============================================================================================
+if [ ! -d "$DIR_BASE" ]; then
+    echo "❌$LINENO: Erreur : Le dossier '$DIR_BASE' est introuvable."
+    exit 1
+fi
+
+echo "--------------------------------------------------------------------------------------"
+echo "⏳              Analyse de la discographie $DIR_BASE"
+echo "--------------------------------------------------------------------------------------"
+
+i=1
+while read -r fichier; do
+    if exiftool -FileType "$fichier" | grep -q "MP3"; then
+        IFS= read -r TITRE <<< "$(mid3v2 --list "$fichier" | grep -a "^TIT2=" | cut -d= -f2-)"
+        TITRE="${TITRE#"${TITRE%%[![:space:]]*}"}" 
+        TITRE="${TITRE%"${TITRE##*[![:space:]]}"}"
+        
+        DUREE=$(inject_duree "$fichier")
+
+        if [[ "$DUREE" -gt "$SEUIL_X" ]]; then
+            echo -e "🛑$LINENO : $fichier === Durée ${ROUGE_FLASH}$DUREE${RAZ}s trop long ."
+            leresultat=$(deplace_fichier "$fichier")
+            echo -e "⚠️ $LINENO : Maintenant ici ${ORANGE}$leresultat${RAZ}"
+        
+        elif [[ "$DUREE" -lt "$SEUIL_Y" && "$DUREE" -gt 1 ]]; then
+            echo -e "⚠️ $LINENO : $fichier === Durée ${ORANGE}$DUREE${RAZ}s trop court ?"
+            total_sec=$((total_sec + DUREE))
+        
+        elif [[ "$DUREE" -lt 1 ]]; then
+            echo -e "🛑$LINENO : $fichier === Durée ${ROUGE}$DUREE${RAZ}s nulle."
+            leresultat=$(deplace_fichier "$fichier")
+            echo -e "⚠️ $LINENO : Maintenant ici ${ORANGE}$leresultat${RAZ}"
+        
+        else
+            total_sec=$((total_sec + DUREE))
+            laduree_hms=$(convertir_S_en_HMS "$DUREE")
+            # --- MODIFICATION ICI : Séparateur :: ---
+            [[ -n "$AFFICHAGE" ]] && echo -e "$i🔹$TITRE :: $laduree_hms" >&2
+        fi
+        ((i++))
+    fi
+done < <(find "$DIR_BASE" -type f -iname "*.mp3" | sort)
+
+temps_total=$(convertir_S_en_HMS "$total_sec")
+
+echo "------------------------------------------------"
+echo "🎼$LINENO : Total fichiers : $(find "$DIR_BASE" -type f -iname "*.mp3" | wc -l)"
+echo "🕒$LINENO : Durée cumulée  : $temps_total"
+echo "📊 $LINENO : Total secondes : $total_sec s"
+echo "------------------------------------------------"

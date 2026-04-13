@@ -1,0 +1,173 @@
+#!/bin/bash
+
+# si manquantes,Injecte les metadonnées d'un fichier MP3 ou OGG
+# Utilisation en priorité de la commande:  mid3v2 --list /srv/Musique
+# injection avec: mid3v2 --TPE1="$artiste" "$fichier"
+
+# Dossier contenant les MP3
+read -e -p "📂 Glissez-déposez le dossier ici (ou tapez son chemin) : " DIR_BASE
+
+#DIR_BASE="/srv/Musique à valider/Alain Souchon"
+GENRE="Folk - Country"
+LALBUM=""
+# si True - le traitement se fait par ordre de priorité: 1 - Nom du fichier - 2 exiftool - 3 mid3v2
+TITRE_FORCE="True"
+# si True - le traitement se fait par ordre de priorité: 1 - Nom du fichier - 2 exiftool - 3 mid3v2
+ARTISTE_FORCE="True"
+# si rensigné - le traitement le tag ID3v2 sera $ANNEE_FORCE
+ANNEE_FORCE=""
+
+# ===============    Fonction : Découpe le nom de fichier en Artiste, Titre, Année (optionnel)  ======================
+# Usage : extraire_metadonnees "Nom de l'artiste - Titre de la chanson - 1979"
+extraire_nom() {
+    local expression="$1"
+    # On initialise les variables globales (vides par défaut)
+    artiste=""
+    titre=""
+    annee=""
+    # Expression régulière pour détecter : Artiste - Titre - Année.mp3
+    # On utilise des parenthèses () pour capturer chaque morceau
+    local regex="^(.+) - ([^-]+) - ([0-9]{4})\.mp3$"
+    # Expression régulière sans l'année (si la première échoue) : Artiste - Titre.mp3
+    local regex_sans_annee="^(.+) - ([^-]+)\.mp3$"
+    if [[ "$expression" =~ $regex ]]; then
+        artiste="${BASH_REMATCH[1]}"
+        titre="${BASH_REMATCH[2]}"
+        annee="${BASH_REMATCH[3]}"
+        echo "Artiste: $artiste - Titre: $titre - Année: $annee"
+    elif [[ "$expression" =~ $regex_sans_annee ]]; then
+        artiste="${BASH_REMATCH[1]}"
+        titre="${BASH_REMATCH[2]}"
+        # annee reste vide
+        echo "Artiste: $artiste - Titre: $titre"
+    else
+        return 1
+    fi
+}
+
+# ===============    Fonction : Découpe le nom du réperttoire  en Album , Année  ======================
+# Usage : extraire_nom_dir "allbum - 1979"
+extraire_nom_dir() {
+    local entree="$1"
+    # On initialise les variables globales (vides par défaut)
+    album=""
+    annee_dir=""
+   # Expression régulière pour détecter : album - Année.mp3
+    # On utilise des parenthèses () pour capturer chaque morceau
+    local regex="^(.+) - ([0-9]{4})\.mp3$"
+    # Expression régulière sans l'année (si la première échoue) : Artiste - Titre.mp3
+    local regex_sans_annee="^(.+) \.mp3$"
+        if [[ "$expression" =~ $regex ]]; then
+            album="${BASH_REMATCH[1]}"
+            annee_dir="${BASH_REMATCH[2]}"
+        elif [[ "$expression" =~ $regex_sans_annee ]]; then
+            album="${BASH_REMATCH[1]}"
+    fi
+}
+
+#=================              Programme principal        ==========================
+# Par ordre alphabétique - Recherche dans $DIR_BASE et sous répertoire
+i=1
+find "$DIR_BASE" -type f | sort | while read -r fichier; do
+    # On vérifie le type MIME pour chaque fichier  et on ne garde que MP3
+    if exiftool -s3 -FileType "$fichier" | grep -qE "MP3|OGG"; then
+        base=$(basename "$fichier")
+        dir=$(dirname "$fichier")
+        # Lecture des tags (on utilise -s3 pour avoir la valeur brute) si unknown ou vide
+        # ------------------------- extraction artiste -----------------
+        if [ "$ARTISTE_FORCE" = "True" ]; then
+            # extraction du nom de $fichier
+            extraire_nom "$base"
+        else
+            # extraction de l'artiste à partir des metadonnées
+            # en 1er essai d'extraction artiste avec exiftool
+            echo "Recherche artiste avec exiftool" 
+            artiste=$(exiftool -s3 -Artist "$fichier")
+            # essai d'extraction artiste avec mid3v2
+            if [[ -z "$artiste" || "$artiste" == "Unknown artist" ]]; then
+                artiste=$(mid3v2 --list "$fichier" | grep "^TPE1=" | cut -d= -f2-)
+            fi
+        fi
+        # ------------------------- extraction titre -----------------
+        if [ "$TITRE_FORCE" = "True" ]; then
+            # si precedemment trouve pas besoin de recommencer
+            # Priorité au titre déjà trouvé
+            if [ -z "$titre" ]; then
+                # extraction du titre à partir de $fichier
+                echo "Le titre $titre n'existe pas ?" 
+                # extraction du titre à partir des metadonnées
+                # en 1er essai d'extraction titre avec exiftool
+                echo "Recherche titre avec exiftool" 
+                titre=$(exiftool -s3 -Title "$fichier")
+                # essai d'extraction titre avec mid3v2
+                if [[ -z "$titre" || "$titre" == "Unknown" ]]; then
+                    echo "Recherche titre avec mid3v2" 
+                    titre=$(mid3v2 --list "$fichier" | grep "^TIT2=" | cut -d= -f2-)
+                fi
+            fi
+        fi 
+        #======================   injection  ARTISTE à partir du nom de $base (nom de fichier) =========
+        if [[ ( -n "$artiste" || "$artiste" == "Unknown artist" ) && "$ARTISTE_FORCE" == "True" ]]; then
+                # injection de $artiste dans $fichier
+                mid3v2 --TPE1="$artiste" "$dir/$base"
+                echo "✅ Traitement  $artiste"
+        fi
+        #======================   injection  TITRE à partir du nom de $base (nom de fichier) =========
+        if [[ ( -n "$titre" || "$titre" == "Unknown artist" ) && "$TITRE_FORCE" == "True" ]]; then
+            # injection de $artiste dans $fichier
+            mid3v2 --song="$titre" "$dir/$base"
+            echo "✅ Traitement de $titre"
+        fi
+        #======================   injection  ANNEE =========
+        # 3 sources possibles, par ordre de priorité: force - dir - nom_fichier 
+        if [ -z "$ANNEE_FORCE" ]; then
+            # annee dans le repertoire parent de $fichier
+            parent=$(basename "$dir")
+            extraire_nom_dir "$parent"
+            if [ -n "$annee_dir" ]; then
+                 LANNEE="$annee_dir"
+            else
+                # si FORCE no utilisé, la fonction extraction pas encore utilisé
+                extraire_nom "$base"
+                if [ -n "$annee" ]; then
+                    LANNEE="$annee"
+                else
+                    LANNEE=""
+                fi
+            fi
+        else
+            LANNEE="$ANNEE_FORCE"
+        fi
+        if [ -n "$LANNEE" ]; then
+            mid3v2 --date="$LANNEE" "$fichier"
+            echo "✅ Traitement  $LANNEE"
+        fi
+        #======================   injection  GENRE =========
+        if [ -n "$GENRE" ]; then
+            mid3v2 --genre="$GENRE" "$fichier"
+            echo "✅ Traitement  $GENRE"
+        fi
+        #======================   injection  LALBUM =========
+        if [ -n "$LALBUM" ]; then
+            mid3v2 --TALB="$LALBUM" "$fichier"
+        else
+            parent=$(basename "$dir")
+            extraire_nom_dir "$parent"
+            if [ -n "$lalbum" ]; then
+                mid3v2 --TALB="$lalbum" "$fichier"
+                echo "✅ Traitement  $lalbum"
+            fi
+        fi
+       #=============================================================================================
+        echo "Répertoire: $dir"
+        echo "Fichier: $base"
+        # \e[32m : Allume la couleur verte
+        # \e[0m  : Réinitialise la couleur (TRÈS IMPORTANT pour ne pas colorer tout le terminal)
+        echo  -e "$i🎵  Artiste: \e[32m$artiste\e[0m - 🎤 Titre: \e[32m$titre\e[0m - 📅 Date: \e[32m$LANNEE\e[0m - Durée: \e[32m$DUREE\e[0m"
+        #echo "🎵  Artiste: $artiste - Titre: $titre - Album: $ALBUM - Date: $DATE - Durée: $DUREE"
+        ((i++))
+    fi
+done
+
+
+

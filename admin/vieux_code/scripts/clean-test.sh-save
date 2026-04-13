@@ -1,0 +1,145 @@
+#!/bin/bash
+
+##read -e -p "📂 Glissez-déposez le dossier ici (ou tapez son chemin) : " DIR_BASE
+#DIR_BASE="/media/enjoy/Data/musique/xx-NON-CONFORME/Thématiques/sunny boy66/SPLIT/Ebrahim & Royal Orchestra - Bidād (Homāyun)_decoupe"
+
+#ORANGE='\033[0;33m'
+#ORANGE_FLASH='\033[1;5;33m'
+#ROUGE='\033[0;31m'
+#ROUGE_FLASH='\033[1;5;31m'
+#VERT='\033[0;32m'
+#VERT_FLASH='\033[1;5;32m'
+#RAZ='\033[0m' # Rétablit la couleur par défaut
+#lire_artiste_titre_annee() {
+    #local artiste=""
+    #local titre=""
+    #local annee=""
+    ## 1. On récupère uniquement le nom du fichier, sans le chemin
+    #local nom_fichier_seul=$(basename "$1")
+## 2. On applique les regex sur le nom nettoyé
+    #local regex="^(.+) - (.+) - ([0-9]{4})\.mp3$"
+    #local regex_sans_annee="^(.+) - (.+)\.mp3$"
+
+    #if [[ "$nom_fichier_seul" =~ $regex ]]; then
+        #artiste="${BASH_REMATCH[1]}"
+        #titre="${BASH_REMATCH[2]}"
+        #annee="${BASH_REMATCH[3]}"
+        ## Double vérification : est-ce bien un nombre ?
+        #if [[ "$annee" =~ ^[0-9]+$ ]]; then
+             #echo "$artiste|$titre|$annee"
+        #else
+             ## Si ce n'est pas un nombre, on traite comme "sans année"
+             #echo "$artiste|$titre - $annee|"
+        #fi
+    #elif [[ "$nom_fichier_seul" =~ $regex_sans_annee ]]; then
+        #artiste="${BASH_REMATCH[1]}"
+        #titre="${BASH_REMATCH[2]}"
+        #echo "$artiste|$titre|"
+    #else
+        #return 1
+    #fi
+#}
+
+## Par ordre alphabétique - Recherche dans $DIR_BASE et sous répertoire
+#i=1
+#find "$DIR_BASE" -type f | sort | while read -r FULL_PATH; do
+## On vérifie le type MIME pour chaque fichier  et on ne garde que MP3
+    #if exiftool -s3 -FileType "$FULL_PATH" | grep -qE "MP3|OGG"; then
+        #infos=$(lire_artiste_titre_annee "$FULL_PATH")
+        #if [ $? -eq 0 ]; then
+            ## On découpe le résultat avec IFS (séparateur |)
+            #IFS="|" read -r r_artiste r_titre r_annee <<< "$infos"
+            #echo "------------------------------------------------------------------------------------------:"
+            #echo -e "$i ✅ Extraction réussie :"
+            #echo "   Artiste : $r_artiste"
+            #echo "   Titre   : ${VERT}$r_titre${EAZ}"
+            #echo "   Année   : ${r_annee:-Inconnue}"
+        #else
+            #echo "------------------------------------------------------------------------------------------:"
+            #echo -e "❌ Format de fichier ${ROUGE_FLASH}non reconnu.${EAZ}"
+        #fi
+        #((i++))
+    #fi
+#done
+#------------------------------------------------------------------      NEW       --------------------------------------------------------------------------------------
+# Configuration
+DIR_BASE="/media/enjoy/Data/musique/xx-NON-CONFORME/Thématiques/sunny boy66/SPLIT/Ebrahim & Royal Orchestra - Bidād (Homāyun)_decoupe"
+
+# Couleurs
+ORANGE='\033[0;33m'
+ORANGE_FLASH='\033[1;5;33m'
+ROUGE='\033[0;31m'
+ROUGE_FLASH='\033[1;5;31m'
+VERT='\033[0;32m'
+VERT_FLASH='\033[1;5;32m'
+RAZ='\033[0m' # Rétablit la couleur par défaut
+
+lire_artiste_titre_annee() {
+    local nom_fichier_seul=$(basename "$1")
+    local nom_sans_ext="${nom_fichier_seul%.*}"
+    
+    local artiste=""
+    local titre=""
+    local annee=""
+
+    # 1. On compte le nombre de séparateurs " - "
+    # On remplace tout sauf " - " par rien et on compte les caractères restants
+    local nb_separateurs=$(echo "$nom_sans_ext" | grep -o " - " | wc -l)
+
+    if [ "$nb_separateurs" -eq 2 ]; then
+        # CAS : Artiste - Titre - Année
+        artiste="${nom_sans_ext%% - *}"           # Avant le 1er " - "
+        local reste="${nom_sans_ext#* - }"        # Tout après le 1er " - "
+        titre="${reste% - *}"                    # Tout avant le DERNIER " - " du reste
+        annee="${reste##* - }"                   # Uniquement après le DERNIER " - "
+
+        # VERIFICATION : L'année doit être purement numérique
+        if [[ ! "$annee" =~ ^[0-9]+$ ]]; then
+            return 1 # ERREUR : Le 3ème bloc n'est pas un nombre
+        fi
+        echo "$artiste|$titre|$annee"
+
+    elif [ "$nb_separateurs" -eq 1 ]; then
+        # CAS : Artiste - Titre
+        artiste="${nom_sans_ext%% - *}"
+        titre="${nom_sans_ext#* - }"
+        echo "$artiste|$titre|"
+    else
+        # Trop ou pas assez de séparateurs
+        return 1
+    fi
+}
+
+echo -e "${ORANGE}🚀 Analyse du dossier : $DIR_BASE${RAZ}"
+
+# Initialisation du compteur
+i=1
+
+# Utilisation de find -print0 pour gérer les noms avec espaces et apostrophes
+find "$DIR_BASE" -type f \( -iname "*.mp3" -o -iname "*.ogg" \) -print0 | sort -z | while IFS= read -r -d '' FULL_PATH; do
+    
+    # On vérifie le type MIME via exiftool
+    if exiftool -s3 -FileType "$FULL_PATH" | grep -qE "MP3|OGG"; then
+        
+        # On capture la sortie de la fonction
+        infos=$(lire_artiste_titre_annee "$FULL_PATH")
+        
+        if [ $? -eq 0 ]; then
+            # On découpe le résultat avec IFS
+            IFS="|" read -r r_artiste r_titre r_annee <<< "$infos"
+            
+            echo "------------------------------------------------------------------------------------------:"
+            echo -e "$i ✅ ${VERT}Extraction réussie :${RAZ}"
+            echo "   Artiste : $r_artiste"
+            echo -e "   Titre   : ${VERT}$r_titre${RAZ}"
+            echo -e "   Année   : ${ORANGE}${r_annee:-Inconnue}${RAZ}"
+        else
+            echo "------------------------------------------------------------------------------------------:"
+            echo -e "$i ❌ Format de fichier ${ROUGE_FLASH}non reconnu${RAZ} : $(basename "$FULL_PATH")"
+        fi
+        
+        ((i++))
+    fi
+done
+
+echo -e "\n${VERT}🏁 Analyse terminée.${RAZ}"

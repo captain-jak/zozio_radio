@@ -1,0 +1,118 @@
+<?php
+//-------------   script corrigé le 13.04.2026 ---------------
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+header("Access-Control-Allow-Origin: *");
+header("Content-Type: text/plain; charset=utf-8");
+
+$action = isset($_GET['action']) ? $_GET['action'] : '';
+$file = isset($_GET['file']) ? $_GET['file'] : '';
+
+$fp = @fsockopen("127.0.0.1", 1234, $errno, $errstr, 5);
+if (!$fp) {
+    http_response_code(500);
+    echo "Erreur : Impossible de joindre Liquidsoap ($errstr)";
+    exit;
+}
+
+usleep(100000); 
+$response_text = "";
+
+// --- FONCTION POUR LIRE TELNET ---
+function get_telnet_val($fp, $cmd) {
+    fwrite($fp, $cmd . "\n");
+    $result = "";
+    while ($line = fgets($fp, 512)) {
+        $line = trim($line);
+        if ($line == "END") break;
+        if ($line != "" && $line != '""') $result = str_replace('"', '', $line);
+    }
+    return $result;
+}
+
+switch ($action) {
+    case 'skip':
+        // On skip le switch (ID: radio) ET la sortie finale
+        fwrite($fp, "radio.skip\n");
+        usleep(50000);
+        fwrite($fp, "icecast_out.skip\n");
+        $response_text = "⏭ Passage au titre suivant";
+        break;
+
+    case 'jingle':
+        if (!empty($file)) {
+            // L'ID dans le .liq est "jingles"
+            fwrite($fp, "jingles.push " . $file . "\n");
+            $response_text = "Jingle envoyé !";
+        }
+        break;
+
+    case 'playlist':
+        $playlist = isset($_GET['playlist']) ? $_GET['playlist'] : 'tous';
+        $dir = isset($_GET['dir']) ? $_GET['dir'] : '';
+        $m3u = isset($_GET['m3u']) ? $_GET['m3u'] : '';
+        
+        if (!empty($dir) && !empty($m3u)) {
+            exec('find ' . escapeshellarg($dir) . ' -type f -name "*.mp3" > ' . escapeshellarg($m3u));
+        }
+
+        fwrite($fp, "choix_playlist.set " . $playlist . "\n");
+        usleep(100000);
+        fwrite($fp, "radio.skip\n"); // Basculement immédiat
+        $response_text = "Animateur changé : " . ucfirst($playlist);
+        break;
+
+    case 'reload':
+        $current = get_telnet_val($fp, "choix_playlist.get");
+        //// IDs selon votre .liq : tous, guillaume, jacques
+        $id = ($current == "" || $current == "tous") ? "tous" : $current;
+        
+        fwrite($fp, $id . ".reload\n");
+        header('Content-Type: application/json');
+        echo json_encode(["message" => "Playlist $id rechargée !"]);
+        exit;
+        
+    case 'queue':
+        //$current = get_telnet_val($fp, "choix_playlist.get");
+        //$id = ($current == "" || $current == "tous") ? "tous" : $current;
+
+//-------------------------------------------------------------------------------------------------------
+// 1. On récupère le choix de l'animateur
+$current = get_telnet_val($fp, "choix_playlist.get");
+
+// 2. On traduit "onair" (venant du HTML) vers "tous" (venant du .liq)
+if ($current == "onair" || $current == "tous" || empty($current)) {
+    $telnet_id = "tous";
+} else {
+    $telnet_id = $current; // "guillaume" ou "jacques"
+}
+
+// 3. On demande le titre suivant
+fwrite($fp, $telnet_id . ".next\n");
+
+//-------------------------------------------------------------------------------------------------------
+        // On demande le prochain titre (next ou remaining)
+        fwrite($fp, $id . ".next\n");
+        $next_song = "";
+        while ($line = fgets($fp, 512)) {
+            $line = trim($line);
+            if ($line == "END") break;
+            if (strpos($line, '/') !== false || strpos($line, '.mp3') !== false) {
+                $next_song = basename($line);
+                break; 
+            }
+        }
+        
+        header('Content-Type: application/json');
+        echo json_encode([
+            "playlist" => $current,
+            "message" => "Prochain ($id) : " . ($next_song ?: "Sélection...")
+        ]);
+        exit;
+}
+
+fwrite($fp, "exit\n");
+fclose($fp);
+echo $response_text; 
+?>

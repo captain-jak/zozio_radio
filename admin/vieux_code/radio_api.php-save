@@ -1,0 +1,128 @@
+<?php
+//-------------   script du 09.04.2026 ---------------
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+// On autorise la page HTML à appeler ce script (CORS)
+header("Access-Control-Allow-Origin: *");
+header("Content-Type: text/plain");
+
+// On récupère l'action demandée (skip ou jingle) et le fichier si besoin
+$action = isset($_GET['action']) ? $_GET['action'] : '';
+$file = isset($_GET['file']) ? $_GET['file'] : '';
+
+// On ouvre la connexion Telnet vers Liquidsoap sur le port 1234
+$fp = @fsockopen("127.0.0.1", 1234, $errno, $errstr, 5);
+
+if (!$fp) {
+    http_response_code(500);
+    echo "Erreur : Impossible de joindre Liquidsoap sur le port 1234 ($errstr)";
+    exit; // On arrête le script ici si la connexion échoue
+}
+// On attend un tout petit peu que Liquidsoap affiche son message d'accueil
+usleep(100000); 
+$response_text = "";
+
+switch ($action) {
+    case 'skip':
+        // On utilise le nom exact donné par Telnet pour la sortie Icecast
+        fwrite($fp, "output.icecast.skip\n"); 
+        $response_text = "⏭ Passage au titre suivant";
+        break;
+case 'reload':
+        // 1. Identifier l'animateur
+        fwrite($fp, "choix_playlist.get\n");
+        $current = "tous";
+        while ($line = fgets($fp, 512)) {
+            $line = trim($line);
+            if ($line == "END") break;
+            if ($line != "" && $line != '""') $current = str_replace('"', '', $line);
+        }
+
+        // 2. Mapper l'ID Telnet
+        $id = "playlist";
+        if ($current == "guillaume") $id = "playlist.1";
+        if ($current == "jacques") $id = "playlist.2";
+
+        // 3. Envoyer le reload
+        fwrite($fp, $id . ".reload\n");
+        
+        // --- CRUCIAL : On ne fait pas de 'echo' ici ---
+        // On laisse le script continuer ou on renvoie un JSON vide
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(["message" => "Playlist $current rechargee !"]);
+        exit;
+        
+    case 'playlist':
+        $playlist = isset($_GET['playlist']) ? $_GET['playlist'] : '';
+        // On récupère les chemins optionnels envoyés par le JS
+        $dir = isset($_GET['dir']) ? $_GET['dir'] : '';
+        $m3u = isset($_GET['m3u']) ? $_GET['m3u'] : '';
+        if (!empty($dir) && !empty($m3u)) {
+            $cmd = 'find ' . escapeshellarg($dir) . ' -type f -name "*.mp3" > ' . escapeshellarg($m3u);
+            exec($cmd);
+            usleep(50000); 
+        }
+        // On envoie la commande à l'animateur
+        fwrite($fp, "choix_playlist.set " . $playlist . "\n");
+        usleep(100000);
+        
+        // On force le skip sur la sortie pour basculer de suite
+        fwrite($fp, "output.icecast.skip\n");
+        
+        $response_text = "Animateur changé : " . ucfirst($playlist);
+        break;
+          
+    case 'jingle':
+        if (!empty($file)) {
+            // On utilise le nom détecté par Telnet
+            fwrite($fp, "request_queue.push " . $file . "\n");
+            $response_text = "Jingle envoyé !";
+        }
+        break;
+case 'queue':
+        if (ob_get_length()) ob_clean();
+        
+        // 1. On récupère l'animateur actuel
+        fwrite($fp, "choix_playlist.get\n");
+        $current = "tous";
+        while ($line = fgets($fp, 512)) {
+            $line = trim($line);
+            if ($line == "END") break;
+            if ($line != "" && $line != '""') $current = str_replace('"', '', $line);
+        }
+
+        // 2. Mappage : on lie l'animateur à son ID telnet
+        // D'après ton help : playlist = tous, playlist.1 = guillaume, playlist.2 = jacques
+        $telnet_id = "playlist"; // par défaut
+        if ($current == "guillaume") $telnet_id = "playlist.1";
+        if ($current == "jacques") $telnet_id = "playlist.2";
+
+        // 3. On demande le prochain titre à la BONNE playlist
+        fwrite($fp, $telnet_id . ".next\n");
+        
+        $next_song = "";
+        while ($line = fgets($fp, 512)) {
+            $line = trim($line);
+            if ($line == "END") break;
+            // On cherche une ligne qui contient un chemin de fichier
+            if (!empty($line) && (strpos($line, '/') !== false || strpos($line, '.mp3') !== false)) {
+                $next_song = $line;
+                break; 
+            }
+        }
+        fwrite($fp, "exit\n");
+        fclose($fp);
+        $display_name = !empty($next_song) ? basename($next_song) : "Sélection en cours...";
+
+        // Nettoyer toute sortie parasite
+        if (ob_get_length()) ob_clean(); 
+        
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(["message" => "Prochain ($current) : " . $display_name]);
+        exit; // Très important pour ne pas envoyer le "exit" telnet en texte
+    }
+// Pour toutes les autres actions (skip, playlist, jingle)
+fwrite($fp, "exit\n");
+fclose($fp);
+echo $response_text; 
+?>

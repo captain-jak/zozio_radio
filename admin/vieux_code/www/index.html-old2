@@ -1,0 +1,143 @@
+<html lang="fr"> 1
+<head>
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,
+initial-scale=1.0">
+<title>Chantoiseau Radio</title>
+<style>
+body {
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+<!--
+background: #1a1a1a;
+-->
+background: #ffffff;
+color: white;
+display: flex;
+justify-content: center;
+align-items: center;
+height: 100vh;
+margin: 0;
+}
+.player-card {
+<!--
+background: #2d2d2d;
+-->
+background: #ffffff;
+padding: 2rem;
+border-radius: 15px;
+box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+text-align: center;
+width: 300px;
+}
+h1 { color: #00ffcc; font-size: 1.5rem; }
+.status { color: #888; font-size: 0.9rem; margin-bottom: 20px; }
+audio { width: 100%; margin-top: 10px; }
+.live-indicator {
+display: inline-block;
+width: 10px;
+height: 10px;
+background: red;
+border-radius: 50%;
+margin-right: 5px;
+animation: blink 1s infinite;
+}
+#player-container { background: white; padding: 20px; border-radius: 10px; shadow: 0 4px 6px rgba(0,0,0,0.1); }
+#current-track { font-weight: bold; color: #d32f2f; font-size: 1.2em; }
+@keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+</style>
+</head>
+<body>
+<div class="player-card">
+    <img src="ANGOULEME%20RADIO-small.png" alt="chantoiseau-radio" width="171" height="243"><br>
+    <h1>Chantoiseau Radio</h1>
+    <div class="status"> <span class="live-indicator"></span> EN DIRECT </div>
+    <div id="now-playing" style="margin-bottom: 15px; color: #333;">
+    <div id="track-title" style="font-weight: bold; font-size: 1.1rem; color: #d32f2f;">Chargement...</div>
+    <br>
+    <div id="track-artist" style="font-style: italic;">...</div>
+    <div id="track-year" style="font-size: 0.8rem; color: #888;"></div>
+    
+<audio controls src="http://chantoiseau.selfmicro.com:8000/radio.mp3"></audio>
+<p> <span id="current-track">Chargement...</span></p>
+      <button onclick="sendSkip()">⏭ PASSER AU SUIVANT</button>
+</div>
+<div class="label">Durée écoulée</div>
+            <div id="track-timer" class="value" style="color: #2ecc71; margin-bottom: 0;">00:00</div>
+<p style="margin-top: 20px; font-size: 0.8rem; color: #666;">
+     Mise en onde par l'école de voile de Chante-oiseau </p>
+</div>
+<script>
+    const statsUrl = "http://chantoiseau-radio.selfmicro.com:8000/status-json.xsl";
+    //  ADRESSES À VÉRIFIER
+    const ICECAST_URL = "http://chantoiseau-radio.selfmicro.com:8000/status-json.xsl";
+    const PHP_SKIP_URL = "http://chantoiseau-radio.selfmicro.com/skip.php"; 
+
+    let currentTitle = "";
+    let secondsElapsed = 0;
+    let timerInterval = null;
+    
+    // Formater les secondes en mm:ss
+    function formatTime(secs) {
+        let mins = Math.floor(secs / 60);
+        let rest = secs % 60;
+        return `${mins.toString().padStart(2, '0')}:${rest.toString().padStart(2, '0')}`;
+    }
+        
+        async function updateMetadata() {
+            try {
+                const response = await fetch(statsUrl);
+                const data = await response.json();
+                
+                // On cherche la source correspondante au mount "radio.mp3"
+                const source = data.icestats.source;
+                let title = "Musique en cours...";
+
+                if (Array.isArray(source)) {
+                    const s = source.find(src => src.listenurl.includes("/radio.mp3"));
+                    title = s ? s.title : title;
+                } else {
+                    title = source.title;
+                }
+
+                document.getElementById('current-track').innerText = title;
+            } catch (error) {
+                console.error("Erreur lors de la récupération des titres:", error);
+            }
+        }
+
+// Fonction pour passer au morceau suivant
+        async function sendSkip() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.style.color = "#f1c40f";
+            statusDiv.innerText = "Envoi de l'ordre...";
+
+            try {
+                const response = await fetch(PHP_SKIP_URL);
+                const text = await response.text();
+
+                if (response.ok) {
+                    statusDiv.style.color = "#2ecc71";
+                    statusDiv.innerText = "C'est fait ! Changement de titre...";
+                    
+                    // On force une mise à jour d'Icecast après 2 secondes (le temps du fondu)
+                    setTimeout(updateFromIcecast, 2000);
+                } else {
+                    throw new Error(text);
+                }
+            } catch (error) {
+                statusDiv.style.color = "#e74c3c";
+                statusDiv.innerText = "Erreur : " + error.message;
+            }
+        }
+        // Mise à jour toutes les 10 secondes
+        setInterval(updateMetadata, 10000);
+        updateMetadata(); // Appel immédiat au chargement
+    </script>
+</body>
+</html>
+
+
+
+
