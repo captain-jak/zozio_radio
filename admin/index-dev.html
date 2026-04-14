@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<!--
+//-------------   Page écrite le  09.04.2026 ---------------
+=============================================================
+================       A FAIRE  ==================================
+      Reconstruire la playlist quand elle est changée dans l'écran d'administration
+ ==>  IMPORTANT A FAIRE : il faudra mettre une fonction de contrôlr de la conformité des titres de la playlist
+play list ""tous"
+find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique onair" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/tous.m3u"
+ play list ""guillaume"
+find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique animateurs/guillaume" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/guillaume.m3u"
+play list ""jacques"
+find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique animateurs/jacques" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/jacques.m3u"
+
+peut être redémarrer le serveur icecast ??
+OUI
+
+ affichage de l'animateur
+
+
+=============================================================
+=============================================================
+-->
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Régie - zozio</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #1a252f; color: #ecf0f1; padding: 20px; text-align: center;}
+        .container { max-width: 600px; margin: 0 auto; background: #2c3e50; padding: 25px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.4); }
+        h1 { color: #3498db; margin-bottom: 5px;}
+        .section { background: rgba(0,0,0,0.15); padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: left; }
+        .label { font-size: 0.8em; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px;}
+        .value { font-weight: bold; color: #2ecc71; font-size: 1.2em; margin-bottom: 5px; word-wrap: break-word;}
+        
+        button { background: #e74c3c; color: white; border: none; padding: 12px 20px; font-size: 1em; border-radius: 6px; cursor: pointer; width: 100%; transition: 0.2s; font-weight: bold; margin-bottom: 5px;}
+        button:hover { background: #c0392b; transform: translateY(-1px); }
+        
+        select { width: 100%; padding: 10px; border-radius: 6px; background: #34495e; color: white; border: 1px solid #5d6d7e; font-size: 1em; }
+        .queue-list { font-family: monospace; font-size: 0.9em; background: #222; padding: 10px; border-radius: 5px; max-height: 80px; overflow-y: auto; color: #f1c40f; }
+        
+        /* Style pour les boutons Jingle */
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn-jingle { background: #3498db; }
+        .btn-jingle:hover { background: #2980b9; }
+        
+        #status { margin-top: 15px; font-size: 0.9em; color: #f39c12; min-height: 1.2em; text-align: center;}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📻 Régie Chantoiseau</h1>
+    <p style="opacity: 0.5; margin-top: 0;">Console de contrôle</p>
+    <div class="section">
+        <div class="label">🎵 En direct</div>
+            <div id="current-title" class="value">Chargement...</div>
+            <div class="label">⏱ Durée écoulée</div>
+            <div id="timer" style="color: #95a5a6; font-weight: bold;">00:00</div>
+        </div>
+
+<div class="section">
+    <div class="label">📂 Sélection de l'animateur</div>
+    <select id="playlist-select" onchange="changePlaylist()">
+        <option value="onair" selected>Musique pour tous (Random)</option>
+        <option value="guillaume">Guillaume</option>
+        <option value="jacques">Jacques</option>
+    </select>
+</div>
+<button onclick="triggerAction('reload')">🔄 RECHARGER LA PLAYLIST</button>
+<div class="section">
+    <div class="label">📢 Lancer un Jingle / Message</div>
+    <div class="btn-grid">
+        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/Vagues_océaniques_douces.mp3'))">Océan !</button>
+        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/rouge-gorge.mp3'))">🎺 Forêt</button>
+        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/Coq_vigoureux.mp3'))">🌦 Campagne</button>
+        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/intro.mp3'))">🎭 Intro</button>
+    </div>
+</div>
+
+        <div class="section">
+            <div class="label">⏭ Prochainement</div>
+            <div id="queue-box" class="queue-list">Chargement de la file...</div>
+        </div>
+
+        <button onclick="triggerAction('skip')">⏭ PASSER AU TITRE SUIVANT</button>
+        
+        <div id="status"></div>
+    </div> 
+
+ <script>
+     // sans proxy
+    //const ICECAST_URL = "http://chantoiseau-radio.selfmicro.com:8000/status-json.xsl";
+    // avec le proxy
+    const ICECAST_URL = "https://chantoiseau-radio.selfmicro.com/icecast/status-json.xsl";
+    const API_URL = "https://chantoiseau-radio.selfmicro.com/admin/radio_api_admin-dev.php";
+    
+    let currentTitle = "";
+    let seconds = 0;
+    let timer = null;
+
+ async function triggerAction(action, playlist = "", extra = "") {
+    const statusDiv = document.getElementById('status');
+    statusDiv.innerText = "Envoi de l'ordre...";
+
+    try {
+        let url = `${API_URL}?action=${action}`;
+        if (playlist) url += `&playlist=${encodeURIComponent(playlist)}`;
+        if (extra) url += extra; 
+        
+        const res = await fetch(url);
+        const data = await res.text();
+        
+        // Affichage de la confirmation (ex: "Animateur changé")
+        statusDiv.innerText = data;
+        
+        // --- LOGIQUE DE MISE À JOUR ---
+        // Si on vient de passer un titre (skip) ou changer d'animateur,
+        // on attend 2.5 secondes pour laisser Liquidsoap mettre sa file à jour.
+        // Sinon, 500ms suffisent.
+        let delay = (action === 'skip' || action === 'playlist') ? 2500 : 500;
+        
+        setTimeout(loadQueue, delay);
+        
+    } catch (e) {
+        console.error("Erreur commande:", e);
+        statusDiv.innerText = "Erreur de communication.";
+    }
+}
+
+function changePlaylist() {
+    const val = document.getElementById('playlist-select').value;
+    let val1 = "";
+    let val2 = "";
+    
+    // Détermination des dossiers selon le choix
+    if (val === "jacques") {
+        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Jacques-onair";
+        val2 = "/srv/www/chantoiseau-radio/admin/jacques.m3u";
+    } else if (val === "guillaume") {
+        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Guillaume-onair";
+        val2 = "/srv/www/chantoiseau-radio/admin/guillaume.m3u";
+    } else {
+        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-onair";
+        val2 = "/srv/www/chantoiseau-radio/admin/onair.m3u";
+    }
+         
+    // On construit les paramètres additionnels pour le PHP
+    const extraParams = `&dir=${encodeURIComponent(val1)}&m3u=${encodeURIComponent(val2)}`;
+    
+    // On appelle triggerAction(action, playlistValue, extraParams)
+    triggerAction('playlist', val, extraParams);
+}
+
+async function loadQueue() {
+    try {
+        const res = await fetch(`${API_URL}?action=queue&t=${Date.now()}`);
+        const text = await res.text(); // On récupère d'abord le texte brut
+        try {
+            const data = JSON.parse(text); // On essaie de le transformer en JSON
+            document.getElementById('queue-box').innerText = data.message || "Aucun titre en attente.";
+        } catch (e) {
+            console.error("Le PHP n'a pas renvoyé de JSON valide :", text);
+            document.getElementById('queue-box').innerText = "Erreur format réponse.";
+        }
+    } catch (e) { 
+        document.getElementById('queue-box').innerText = "Serveur injoignable."; 
+    }
+}
+
+    // Fonction pour décoder les entités HTML (ex: &#8217; -> ')
+    function decodeHtml(html) {
+        const txt = document.createElement("textarea");
+        txt.innerHTML = html;
+        return txt.value;
+    }
+    
+    async function updateIcecast() {
+        try {
+            const res = await fetch(ICECAST_URL);
+            const data = await res.json();
+            
+            let sources = data.icestats.source;
+            let mySource = null;
+    
+            if (Array.isArray(sources)) {
+                mySource = sources.find(s => s.listenurl && s.listenurl.includes('/radio.mp3'));
+            } else if (sources && sources.listenurl && sources.listenurl.includes('/radio.mp3')) {
+                mySource = sources;
+            }
+    
+            if (mySource && mySource.title) {
+                // ON DÉCODE LE TITRE ICI
+                let cleanTitle = decodeHtml(mySource.title.trim());
+                
+                if (cleanTitle !== currentTitle) {
+                    currentTitle = cleanTitle;
+                    document.getElementById('current-title').innerText = currentTitle;
+                    
+                    // Reset du chrono...
+                    seconds = 0;
+                    document.getElementById('timer').innerText = "00:00";
+                    if(timer) clearInterval(timer);
+                    timer = setInterval(() => {
+                        seconds++;
+                        let m = Math.floor(seconds/60).toString().padStart(2,'0');
+                        let s = (seconds%60).toString().padStart(2,'0');
+                        document.getElementById('timer').innerText = `${m}:${s}`;
+                    }, 1000);
+                    
+                    loadQueue();
+                }
+            }
+        } catch (e) { 
+            console.error("Erreur Icecast:", e); 
+        }
+    }
+    // Lancement et répétition
+    setInterval(updateIcecast, 5000); // Rafraîchit toutes les 5 secondes
+    updateIcecast();
+    loadQueue();
+</script>
+</body>
+</html>

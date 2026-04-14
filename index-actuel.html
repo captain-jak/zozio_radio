@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radio Zozio</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #ffffff; color: #333; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .player-card { background: #ffffff; padding: 1.5rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; width: 320px; }
+        h1 { color: #00b38f; font-size: 1.3rem; margin: 10px 0; }
+        .status { font-size: 0.85rem; margin-bottom: 10px; }
+        .live-indicator { display: inline-block; width: 8px; height: 8px; background: red; border-radius: 50%; margin-right: 5px; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        
+        #current-track { font-weight: bold; color: #d32f2f; font-size: 1.1em; display: block; margin-top: 2px; line-height: 1.1; }
+        .label { font-size: 0.7rem; color: #999; text-transform: uppercase; margin-top: 10px; }
+        .value { font-family: monospace; font-size: 1.1rem; color: #2ecc71; }
+        .info-block { border-top: 1px solid #eee; margin-top: 10px; padding-top: 5px; }
+        .secondary-track { font-size: 0.85rem; color: #666; display: block; }
+        audio { width: 100%; margin: 10px 0; }
+    </style>
+</head>
+<body>
+<div class="player-card">
+    <img src="ANGOULEME%20RADIO-small.png" alt="radio zozio" width="120">
+    <h1>Radio Zozio</h1>
+    
+    <div class="status"> 
+        <span class="live-indicator"></span> EN DIRECT <br>
+        <span id="current-playlist" style="font-weight: bold;">Chargement...</span>
+    </div>
+
+    <audio controls src="http://chantoiseau-radio.selfmicro.com:8000/radio.mp3"></audio>
+
+    <div class="info-block">
+        <div class="label">Titre Précédent</div>
+        <span id="prev-track" class="secondary-track">---</span>
+    </div>
+
+    <div class="info-block">
+        <div class="label">Titre en cours</div>
+        <span id="current-track">Chargement...</span>
+        <div id="track-duration" class="value" style="font-size: 0.9rem; margin-top: 5px;">--:--</div>
+    </div>
+
+    <div class="info-block">
+        <div class="label">Titre à suivre</div>
+        <span id="next-track" class="secondary-track">---</span>
+    </div>
+
+    <p style="margin-top: 20px; font-size: 0.7rem; color: #bbb;">Mise en onde par l'école de voile de Chante-oiseau</p>
+</div>
+
+<script>
+    const statsUrl = "http://chantoiseau-radio.selfmicro.com:8000/status-json.xsl";
+    const apiUrl = "    http://chantoiseau-radio.selfmicro.com/radio_api-test.php?action=infos";
+// Affichage Animateur sécurisé
+const plEl = document.getElementById('current-playlist');
+// On vérifie toutes les possibilités : data.animateur ou data.playlist
+let qui = data.animateur || data.playlist || "tous";
+
+if (qui && typeof qui === 'string') {
+    if (qui.toLowerCase() === "tous") {
+        plEl.innerText = "Le meilleur des chants de zozios";
+        plEl.style.color = "#00b38f";
+    } else {
+        plEl.innerText = "C'est " + qui.charAt(0).toUpperCase() + qui.slice(1) + " qui passe les disques";
+        plEl.style.color = "#ff5722";
+    }
+}
+
+    function formatTime(secs) {
+        if (!secs || isNaN(secs)) return "--:--";
+        let mins = Math.floor(secs / 60);
+        let rest = secs % 60;
+        return `${mins.toString().padStart(2, '0')}:${rest.toString().padStart(2, '0')}`;
+    }
+
+async function updateMetadata() {
+    try {
+        const res = await fetch("http://chantoiseau-radio.selfmicro.com/radio_api.php");
+        if (!res.ok) throw new Error("Erreur serveur");
+        const data = await res.json();
+        
+        // 1. Mise à jour Animateur avec sécurité totale
+        const plEl = document.getElementById('current-playlist');
+        // On récupère la valeur ou "tous" par défaut
+        const qui = (data.animateur || data.playlist || "tous").toString().toLowerCase();
+
+        if (qui.includes("tous")) {
+            plEl.innerText = "Le meilleur des chants de zozios";
+            plEl.style.color = "#00b38f";
+        } else {
+            // Mise en majuscule de la première lettre proprement
+            const nomLabel = qui.charAt(0).toUpperCase() + qui.slice(1);
+            plEl.innerText = "C'est " + nomLabel + " qui passe les disques";
+            plEl.style.color = "#ff5722";
+        }
+
+        // 2. Mise à jour des textes
+        document.getElementById('current-track').innerText = data.current || "Musique en cours...";
+        document.getElementById('next-track').innerText    = data.next || "---";
+        document.getElementById('prev-track').innerText    = data.last || "---";
+
+    } catch (e) {
+        console.error("Erreur de liaison API :", e);
+        // En cas d'erreur, on ne laisse pas "Chargement..."
+        document.getElementById('current-playlist').innerText = "Radio en direct";
+    }
+}
+
+// Rafraîchissement toutes les 10 secondes
+setInterval(updateMetadata, 10000);
+updateMetadata();
+
+</script>
+</body>
+</html>

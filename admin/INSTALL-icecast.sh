@@ -92,6 +92,9 @@ radio.history -> Pour voir si historique s'affiche.
 
 -> Pour voir si le titre suivant est prêt.
 
+# voir lesz erreurs au demarrage liquidsoap
+sudo journalctl -u chantoiseau-radio.service -n 50 --no-pager
+
 
 
 
