@@ -24,7 +24,7 @@ OUI
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Console Admin - Chantoiseau</title>
+    <title>Régie - zozio</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #1a252f; color: #ecf0f1; padding: 20px; text-align: center;}
         .container { max-width: 600px; margin: 0 auto; background: #2c3e50; padding: 25px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.4); }
@@ -71,10 +71,10 @@ OUI
 <div class="section">
     <div class="label">📢 Lancer un Jingle / Message</div>
     <div class="btn-grid">
-        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique librarie/Jingles/Vagues_océaniques_douces.mp3'))">Océan !</button>
-        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique librarie/Jingles/rouge-gorge.mp3'))">🎺 Forêt</button>
-        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique librarie/Jingles/Coq_vigoureux.mp3'))">🌦 Campagne</button>
-        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique librarie/Jingles/intro.mp3'))">🎭 Intro</button>
+        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/Vagues_océaniques_douces.mp3'))">Océan !</button>
+        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/rouge-gorge.mp3'))">🎺 Forêt</button>
+        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/Coq_vigoureux.mp3'))">🌦 Campagne</button>
+        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/intro.mp3'))">🎭 Intro</button>
     </div>
 </div>
 
@@ -135,14 +135,14 @@ function changePlaylist() {
     
     // Détermination des dossiers selon le choix
     if (val === "jacques") {
-        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique animateurs/Jacques onair";
-        val2 = "/srv/admin/chantoiseau-radio/jacques.m3u";
+        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Jacques-onair";
+        val2 = "/srv/www/chantoiseau-radio/admin/jacques.m3u";
     } else if (val === "guillaume") {
-        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique animateurs/Guillaume onair";
-        val2 = "/srv/admin/chantoiseau-radio/guillaume.m3u";
+        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Guillaume-onair";
+        val2 = "/srv/www/chantoiseau-radio/admin/guillaume.m3u";
     } else {
-        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique onair";
-        val2 = "/srv/admin/chantoiseau-radio/onair.m3u";
+        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-onair";
+        val2 = "/srv/www/chantoiseau-radio/admin/onair.m3u";
     }
          
     // On construit les paramètres additionnels pour le PHP

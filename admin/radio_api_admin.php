@@ -34,14 +34,20 @@ function get_telnet_val($fp, $cmd) {
 }
 
 switch ($action) {
-    case 'skip':
-        // On skip le switch (ID: radio) ET la sortie finale
-        fwrite($fp, "radio.skip\n");
-        usleep(50000);
-        fwrite($fp, "icecast_out.skip\n");
-        $response_text = "⏭ Passage au titre suivant";
-        break;
-
+    //case 'skip':
+        //// On skip le switch (ID: radio) ET la sortie finale
+        //fwrite($fp, "radio.skip\n");
+        //usleep(50000);
+        //fwrite($fp, "icecast_out.skip\n");
+        //$response_text = "⏭ Passage au titre suivant";
+        //break;
+        
+case 'skip':
+    // On utilise l'ID qui a fonctionné en Telnet
+    fwrite($fp, "icecast_out.skip\n");
+    $res = fgets($fp, 512); // Pour lire le "Done"
+    $response_text = "⏭ Passage au titre suivant effectué";
+    break;
     case 'jingle':
         if (!empty($file)) {
             // Utilisation de guillemets pour gérer les espaces dans le chemin

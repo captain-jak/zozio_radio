@@ -82,7 +82,7 @@
             const rawAuth = (apiData.playlist || "tous").toLowerCase().trim();
             const plEl = document.getElementById('current-playlist');
             if (rawAuth === "tous") {
-                plEl.innerText = "Sélection automatique";
+                plEl.innerText = "Le meilleur des chants de zozios";
                 plEl.style.color = "#00b38f";
             } else {
                 plEl.innerText = `C'est ${rawAuth.charAt(0).toUpperCase() + rawAuth.slice(1)} qui passe les disques`;

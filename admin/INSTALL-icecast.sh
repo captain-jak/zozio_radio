@@ -56,11 +56,11 @@ sudo truncate -s 0 /srv/www/nextcloud/data/nextcloud.log
 convmv -r -f utf-8 -t utf-8 --nfc --notest /srv/zozio-radio
 convmv -r -f utf-8 -t utf-8 --nfc --notest .
 # Reconstruire la playlist
-find "/srv/zozio-radio/Musique onair" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/onair.m3u"
+find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-onair" -type f -name "*.mp3" > "/srv/www/chantoiseau-radio/admin/onair.m3u"
 # playlist guillaume:
-find "/srv/zozio-radio/Musique animateurs/guillaume" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/guillaume.m3u"
+find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Guillaume-onair" -type f -name "*.mp3" > "/srv/www/chantoiseau-radio/admin/guillaume.m3u"
 # playlist jacques:
-find "/srv/zozio-radio/Musique animateurs/jacques" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/jacques.m3u"
+find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Jacques-onair" -type f -name "*.mp3" > "/srv/www/chantoiseau-radio/admin/jacques.m3u"
 
 # Redémarrer la radio:
 sudo systemctl restart chantoiseau-radio
@@ -83,6 +83,14 @@ Des outils on été développés pour vérifier et convertir la cohérence de ce
 clean-inject.sh  # injecte au format mp3db artiste, titre et duree des fichiers du répertoire entré
 clean-duree.sh   # injecte au format mp3db a duree en secondes + totalise la durée totale cumulée des fichiers du répertoire entré
 clean-lecture.sh   # affichage des noms artiste - titre durée des fichiers du répertoire entré
+
+
+Tester les réponses LiquidSoap:
+telnet localhost 1234
+choix_playlist.get -> Pour voir si animateur est bon.
+radio.history -> Pour voir si historique s'affiche.
+
+-> Pour voir si le titre suivant est prêt.
 
 
 
