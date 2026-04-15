@@ -1,26 +1,4 @@
 <!DOCTYPE html>
-<!--
-//-------------   Page écrite le  09.04.2026 ---------------
-=============================================================
-================       A FAIRE  ==================================
-      Reconstruire la playlist quand elle est changée dans l'écran d'administration
- ==>  IMPORTANT A FAIRE : il faudra mettre une fonction de contrôlr de la conformité des titres de la playlist
-play list ""tous"
-find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique onair" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/tous.m3u"
- play list ""guillaume"
-find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique animateurs/guillaume" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/guillaume.m3u"
-play list ""jacques"
-find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique animateurs/jacques" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/jacques.m3u"
-
-peut être redémarrer le serveur icecast ??
-OUI
-
- affichage de l'animateur
-
-
-=============================================================
-=============================================================
--->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -58,7 +36,10 @@ OUI
             <div class="label">⏱ Durée écoulée</div>
             <div id="timer" style="color: #95a5a6; font-weight: bold;">00:00</div>
         </div>
-
+<div class="section">
+    <div class="label">🎙️ Animateur Actuel</div>
+    <div id="active-host" class="value" style="color: #3498db;">Tous</div>
+</div>
 <div class="section">
     <div class="label">📂 Sélection de l'animateur</div>
     <select id="playlist-select" onchange="changePlaylist()">
@@ -106,6 +87,9 @@ OUI
     try {
         let url = `${API_URL}?action=${action}`;
         if (playlist) url += `&playlist=${encodeURIComponent(playlist)}`;
+        if (action === 'playlist') {
+            document.getElementById('active-host').innerText = playlist.toUpperCase();
+        }
         if (extra) url += extra; 
         
         const res = await fetch(url);

@@ -34,14 +34,6 @@ function get_telnet_val($fp, $cmd) {
 }
 
 switch ($action) {
-    //case 'skip':
-        //// On skip le switch (ID: radio) ET la sortie finale
-        //fwrite($fp, "radio.skip\n");
-        //usleep(50000);
-        //fwrite($fp, "icecast_out.skip\n");
-        //$response_text = "⏭ Passage au titre suivant";
-        //break;
-        
 case 'skip':
     // On utilise l'ID qui a fonctionné en Telnet
     fwrite($fp, "icecast_out.skip\n");
@@ -73,13 +65,22 @@ case 'skip':
         $response_text = "Animateur changé : " . ucfirst($playlist);
         break;
 
-    case 'reload':
+case 'reload':
+        // 1. On demande à Liquidsoap qui est l'animateur actuel
         $current = get_telnet_val($fp, "choix_playlist.get");
-        $id = ($current == "" || $current == "tous" || $current == "onair") ? "tous" : $current;
         
+        // 2. Traduction : Liquidsoap connaît l'ID "tous", pas "onair"
+        $id = "tous"; 
+        if ($current == "guillaume") $id = "guillaume";
+        if ($current == "jacques") $id = "jacques";
+        
+        // 3. Envoi de l'ordre de rechargement
         fwrite($fp, $id . ".reload\n");
+        
+        // 4. Réponse propre pour le JavaScript
         header('Content-Type: application/json');
-        echo json_encode(["message" => "Playlist $id rechargée !"]);
+        echo json_encode(["message" => "Playlist $id mise à jour sur le serveur !"]);
+        
         fwrite($fp, "quit\n");
         fclose($fp);
         exit;

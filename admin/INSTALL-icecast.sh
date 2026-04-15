@@ -2,6 +2,8 @@
 
 # Fabriquer la playlist
 find "/srv/zozio-radio/Musique onair" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/onair.m3u"
+# mp3 ou ogg
+find "/srv/zozio-radio/Musique onair" -type f \( -name "*.mp3" -o -name "*.ogg" \) | sort > "/srv/admin/chantoiseau-radio/onair.m3u"
 sudo systemctl restart chantoiseau-radio
 mpv http://zozio.uk &
 # Redémarrer icecast
@@ -88,7 +90,10 @@ clean-lecture.sh   # affichage des noms artiste - titre durée des fichiers du r
 Tester les réponses LiquidSoap:
 telnet localhost 1234
 choix_playlist.get -> Pour voir si animateur est bon.
-radio.history -> Pour voir si historique s'affiche.
+radio.history -> Pour voir si historique s affiche.
+choix_playlist.get
+choix_playlist.set guillaume
+
 
 -> Pour voir si le titre suivant est prêt.
 

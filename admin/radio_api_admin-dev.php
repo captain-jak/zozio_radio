@@ -33,69 +33,67 @@ function get_telnet_val($fp, $cmd) {
     return $result;
 }
 
+// ... (début du script inchangé)
+
 switch ($action) {
-    //case 'skip':
-        //// On skip le switch (ID: radio) ET la sortie finale
-        //fwrite($fp, "radio.skip\n");
-        //usleep(50000);
-        //fwrite($fp, "icecast_out.skip\n");
-        //$response_text = "⏭ Passage au titre suivant";
-        //break;
-        
-case 'skip':
-    // On utilise l'ID qui a fonctionné en Telnet
-    fwrite($fp, "icecast_out.skip\n");
-    $res = fgets($fp, 512); // Pour lire le "Done"
-    $response_text = "⏭ Passage au titre suivant effectué";
+    case 'skip':
+        fwrite($fp, "icecast_out.skip\n");
+        $response_text = "⏭ Passage au titre suivant";
+        break;
+
+case 'playlist':
+    $playlist = $_GET['playlist'] ?? 'tous';
+    $dir = $_GET['dir'] ?? '';
+    $m3u = $_GET['m3u'] ?? '';
+    
+    $cleanList = []; // Initialisation pour éviter l'erreur de count()
+    if (!empty($dir) && !empty($m3u)) {
+        $files = shell_exec('find ' . escapeshellarg($dir) . ' -type f -name "*.mp3"');
+        $fileList = explode("\n", trim($files));
+
+        foreach ($fileList as $filePath) {
+            if (empty($filePath)) continue;
+            // Contrôle de conformité rapide
+            $check = shell_exec("ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 " . escapeshellarg($filePath));
+            if (is_numeric(trim($check))) {
+                $cleanList[] = $filePath;
+            }
+        }
+        file_put_contents($m3u, implode("\n", $cleanList));
+    }
+
+    // --- LES ORDRES À LIQUIDSOAP ---
+    // 1. On change la variable de l'animateur
+    fwrite($fp, "choix_playlist.set $playlist\n");
+    usleep(100000);
+
+    // 2. IMPORTANT : On force la playlist concernée à relire son fichier M3U sur le disque
+    // Si $playlist est 'onair', l'ID telnet est 'tous'
+    $id_to_reload = ($playlist == "onair") ? "tous" : $playlist;
+    fwrite($fp, $id_to_reload . ".reload\n"); 
+    usleep(200000);
+
+    // 3. On skip pour appliquer le changement immédiatement
+    fwrite($fp, "radio.skip\n"); 
+    
+    $response_text = "✅ Playlist '" . ucfirst($playlist) . "' mise à jour (" . count($cleanList) . " titres)";
     break;
-    case 'jingle':
-        if (!empty($file)) {
-            // Utilisation de guillemets pour gérer les espaces dans le chemin
-            fwrite($fp, 'jingles.push "' . $file . "\"\n");
-            // On lit la réponse pour vider le buffer telnet
-            $res = fgets($fp, 512); 
-            $response_text = "Jingle envoyé !";
-        }
-        break;
-
-    case 'playlist':
-        $playlist = isset($_GET['playlist']) ? $_GET['playlist'] : 'tous';
-        $dir = isset($_GET['dir']) ? $_GET['dir'] : '';
-        $m3u = isset($_GET['m3u']) ? $_GET['m3u'] : '';
-        
-        if (!empty($dir) && !empty($m3u)) {
-            exec('find ' . escapeshellarg($dir) . ' -type f -name "*.mp3" > ' . escapeshellarg($m3u));
-        }
-
-        fwrite($fp, "choix_playlist.set " . $playlist . "\n");
-        usleep(100000);
-        fwrite($fp, "radio.skip\n"); // Basculement immédiat
-        $response_text = "Animateur changé : " . ucfirst($playlist);
-        break;
-
-    case 'reload':
-        $current = get_telnet_val($fp, "choix_playlist.get");
-        $id = ($current == "" || $current == "tous" || $current == "onair") ? "tous" : $current;
-        
-        fwrite($fp, $id . ".reload\n");
-        header('Content-Type: application/json');
-        echo json_encode(["message" => "Playlist $id rechargée !"]);
-        fwrite($fp, "quit\n");
-        fclose($fp);
-        exit;
-        
+    
     case 'queue':
-        // Nettoyage radical de la sortie pour éviter toute pollution du JSON
-        if (ob_get_length()) ob_clean();
-        
-        // 1. On récupère l'animateur actuel
+        header('Content-Type: application/json');
         $current = get_telnet_val($fp, "choix_playlist.get");
         $id_telnet = ($current == "onair" || $current == "tous" || empty($current)) ? "tous" : $current;
 
-        // 2. On demande le prochain titre à la playlist active
-        fwrite($fp, $id_telnet . ".next\n");
+        fwrite($fp, "$id_telnet.next\n");
         $next_song = "";
         while ($line = fgets($fp, 512)) {
             $line = trim($line);
             if ($line == "END") break;
-            if
+            if ($line != "" && $line != '""') $next_song = basename($line);
+        }
+        echo json_encode(["message" => $next_song ?: "Aucun titre suivant"]);
+        exit;
+}
+
+echo $response_text;
+fclose($fp);

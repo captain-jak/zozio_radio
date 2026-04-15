@@ -8,7 +8,7 @@
 # cas N° 4 = duree est conforme
 #/-------------------------------------------------------------------------------------------------------------------------
 
-SEUIL_X=1200  # seuil supérieur en secondes
+SEUIL_X=1500  # seuil supérieur en secondes
 SEUIL_Y=30  # seuil inférieur en secondes
 #DIR_DUREE_TROP_LONG="/srv/Musique à découper" # Répertoire dans lequel sont deplacés les fichiers trop long
 DIR_DUREE_TROP_LONG="/media/enjoy/Data/musique/xx-NON-CONFORME"
@@ -19,10 +19,14 @@ DIR_ORIGINE="/media/enjoy/Data/musique/zozio radio/Musique librairie"
 AFFICHAGE="ok"
 # si DEBUG vide = pas d'affichage messages de debugging 
 DEBUG=""
+# Valeur par défaut
+EFFACER_ORIGINE=false
 
 # Dossier contenant les MP3
-read -e -p "📂 Glissez-déposez le dossier ici (ou tapez son chemin) : " DIR_BASE
-#DIR_BASE="/srv/Musique2"
+#read -e -p "📂 Glissez-déposez le dossier ici (ou tapez son chemin) : " DIR_BASE
+DIR_BASE="/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Humour/"
+#DIR_BASE="/media/enjoy/Data/musique/zozio radio/Musique librairie/Humour"
+
 total_sec=0
 ORANGE='\033[0;33m'
 ORANGE_FLASH='\033[1;5;33m'
@@ -32,9 +36,53 @@ VERT='\033[0;32m'
 VERT_FLASH='\033[1;5;32m'
 RAZ='\033[0m' # Rétablit la couleur par défaut
 
+# Analyse des arguments passés au script
+for arg in "$@"; do
+  case $arg in
+    -e=true)
+      EFFACER_ORIGINE=true
+      shift # supprime l'argument de la liste
+      ;;
+    -e=false)
+      EFFACER_ORIGINE=false
+      shift
+      ;;
+    *)
+      # Option inconnue ou autre argument
+      ;;
+  esac
+done
+
 # =============================================================================================
 #                    LES              FONCTIONS 
 # =============================================================================================
+# ----------------- Fonction de gestion de la pause (Touche ESPACE) --------------------------------
+
+# ----------------- Fonction de gestion de la pause (Touche ESPACE) --------------------------------
+# ----------------- Fonction de gestion de la pause (Touche ESPACE) --------------------------------
+# ----------------- Fonction de gestion de la pause (Touche ESPACE) --------------------------------
+check_pause() {
+    # On force stty à regarder le terminal (/dev/tty) et non le flux de fichiers
+    # On sauvegarde les paramètres et on passe en mode non-bloquant
+    old_tty_settings=$(stty -g < /dev/tty)
+    stty -icanon min 0 time 0 < /dev/tty
+    
+    # Lecture d'un caractère au vol
+    key=$(dd bs=1 count=1 if=/dev/tty 2>/dev/null)
+    
+    # Restauration immédiate
+    stty "$old_tty_settings" < /dev/tty
+    if [[ "$key" == " " ]]; then
+        echo -e "\n${ORANGE_FLASH} ⏸  PAUSE (Appuyez sur une touche pour reprendre...)${RAZ}"
+        # On attend sans timeout pour la reprise
+        read -n 1 -s < /dev/tty
+        echo -e "${VERT} ▶  REPRISE...${RAZ}\n"
+    elif [[ "$key" == "q" ]]; then
+        echo -e "\n${ROUGE}🛑 Arrêt par l'utilisateur.${RAZ}"
+        exit 0
+    fi
+}
+
 # --------      Fonction de conversion flexible (gère H:M:S ,M:S et S) qui  doit retourner des secondes ---------------------------------
 to_seconds() {
     local duree="$1"
@@ -91,6 +139,7 @@ convertir_S_en_HMS() {
 detect_duree() {
     # On récupère le premier argument passé à la fonction
     local fichier_recu="$1"
+    fichier_recu=$(printf "%s" "$fichier_recu")
     local laduree=""
     local ensec=0
     local source="mid3v2"
@@ -104,7 +153,10 @@ detect_duree() {
          [[ -n "$DEBUG" ]] && echo -e "     ⚡$LINENO:detect_duree : ffprobe:  $laduree" >&2
         # on en profite pour corriger IDv2 tag
         [[ -n "$DEBUG" ]] && echo "💾 $LINENO: Injection de la durée ($laduree sec) dans les tags ID3v2..." >&2
-      mid3v2 --TXXX "duration:$laduree" "$fichier_recu"
+         #if [ "$EFFACER_ORIGINE" = true ]; then
+            #echo -e "$LINENO:inject_duree: ${VERT}✔${RAZ}  Durée réelle détectée : ${VERT}$laduree${RAZ} secondes (inférieure à $SEUIL_X)." >&2
+            #mid3v2 --TXXX "duration:$laduree" "$fichier_recu"
+        #fi
     fi
     ensec=$(to_seconds "$laduree" "$fichier")
     # retourne $laduree en secondes
@@ -143,7 +195,8 @@ deplace_fichier() {
     fi
     # Étape 2 - Calcul du chemin absolu du fichier fraîchement créé
     # On combine le dossier de destination et le chemin du fichier reçu
-    local chemin_absolu="$(realpath "$DIR_DUREE_TROP_LONG/$fichier_recu")"
+    #local chemin_absolu="$(realpath "$DIR_DUREE_TROP_LONG/$fichier_recu")"
+    local chemin_absolu="$DIR_DUREE_TROP_LONG$dir_nettoye/$(basename "$fichier_recu")"
     # Étape 3 - On "retourne" le nom de la fonction et le chemin absolu
      [[ -n "$DEBUG" ]] && echo  -e"     ⚡$LINENO:deplace_fichier : ${ROUGE_FLASH}==> $chemin_absolu${EAZ}" >&2
     echo "$chemin_absolu"
@@ -169,10 +222,13 @@ inject_duree() {
         # La condition : supérieure à 0 ET inférieure à SEUIL_X ET la source est ffprobe
         elif [[ "$laduree" -gt 1 && "$laduree" -lt "$SEUIL_X" && $lasource == "ffprobe" ]]; then
              # ------- étape 1 =  iAffichage du message de réussite en VERT --------------------------------------
-            echo -e "$LINENO:inject_duree: ${VERT}✔${RAZ}  Durée réelle détectée : ${VERT}$laduree${RAZ} secondes (inférieure à $SEUIL_X)." >&2
-             # ------- étape 2 =  injection nouvelle duree  --------------------------------------
-            [[ -n "$DEBUG" ]] && echo -e "     💾$LINENO:inject_duree: Injection de la durée ($laduree sec) dans les tags ID3v2..." >&2
-            mid3v2 --TXXX "duration:$laduree" "$fichier"
+             # mode edition, on injecte $DUREE dans $fichier
+             if [ "$EFFACER_ORIGINE" = true ]; then
+                echo -e "$LINENO:inject_duree: ${VERT}✔${RAZ}  Durée réelle détectée : ${VERT}$laduree${RAZ} secondes (inférieure à $SEUIL_X)." >&2
+                # ------- étape 2 =  injection nouvelle duree  --------------------------------------
+                [[ -n "$DEBUG" ]] && echo -e "     💾$LINENO:inject_duree: Injection de la durée ($laduree sec) dans les tags ID3v2..." >&2
+                mid3v2 --TXXX "duration:$laduree" "$fichier"
+            fi
             [[ -n "$DEBUG" ]] && echo -e "${ORANGE}[DBG] Ligne $LINENO :${RAZ} Tag ID3v2 injecté avec succès pour $fichier" >&2
         else
                 [[ -n "$DEBUG" ]] && echo -e "     ⚠️ $LINENO:inject_duree $fichier, durée incorrecte ou trop longue" >&2
@@ -186,6 +242,7 @@ inject_duree() {
         [[ -n "$DEBUG" ]] && echo -e "     ⚡$LINENOinject_duree : Le titre est maintenant ici $new_fichier" >&2
     fi
 }
+
 # =============================================================================================
 #                                                      PROGRAMME PRINCIPAL
 # =============================================================================================
@@ -194,7 +251,6 @@ if [ ! -d "$DIR_BASE" ]; then
     echo "❌$LINENO: Erreur : Le dossier '$DIR_BASE' est introuvable."
     exit 1
 fi
-
 echo "--------------------------------------------------------------------------------------"
 echo "⏳              Analyse de la discographie $DIR_BASE"
 echo "--------------------------------------------------------------------------------------"
@@ -204,13 +260,23 @@ echo "--------------------------------------------------------------------------
 i=1
 while read -r fichier; do
     [[ -n "$DEBUG" ]] && echo -e "⚡--------------------------------------------------------\n$LINENO : Analyse de $fichier\n--------------------------------------------------------" >&2
+   
+   # APPEL DE LA PAUSE (on redirige l'entrée vers le terminal actuel)
+# 1. Gestion de la pause (Vérifiée à chaque fichier)
+    check_pause
+
+    [[ -n "$DEBUG" ]] && echo -e "⚡---------------------------" >&2
+   
     # On filtre uniquement les MP3 via ExifTool
     if exiftool -FileType "$fichier" | grep -q "MP3"; then
+  
         IFS= read -r TITRE <<< "$(mid3v2 --list "$fichier" | grep -a "^TIT2=" | cut -d= -f2-)"
         # 2. On supprime les espaces au début (Ligne séparée !)
         TITRE="${TITRE#"${TITRE%%[![:space:]]*}"}" 
         # 3. On supprime les espaces à la fin (Ligne séparée !)
         TITRE="${TITRE%"${TITRE##*[![:space:]]}"}"
+        
+        IFS= read -r ARTISTE <<< "$(mid3v2 --list "$fichier" | grep -a "^TPE1=" | cut -d= -f2-)"
         # -- -- Extraction de la duréee du titre
         [[ -n "$DEBUG" ]] && echo -e "⚡$LINENO : appel fonction inject_duree" >&2
         DUREE=$(inject_duree "$fichier")
@@ -221,7 +287,9 @@ while read -r fichier; do
         if [[ "$DUREE" -gt "$SEUIL_X" ]]; then
             echo -e "🛑$LINENO : $fichier === Durée du fichier ${ROUGE_FLASH}$DUREE${RAZ} secondes trop long ."
             # Déplacement du fichier dans $DIR_DUREE_TROP_LONG
-            leresultat=$(deplace_fichier "$fichier")
+            if [ "$EFFACER_ORIGINE" = true ]; then
+                leresultat=$(deplace_fichier "$fichier")
+            fi
             echo -e "⚠️ $LINENO : Maintenant ici ${ORANGE}$leresultat${RAZ}"
             #leresultat=$(inject_duree "$fichier")
            [[ -n "$DEBUG" ]] && echo "⚡$LINENO : Le titre est maintenant ici ${ORANGE}$leresultat${RAZ}" >&2
@@ -236,7 +304,7 @@ while read -r fichier; do
         #----------------------------------------------
         elif [[ "$DUREE" -lt 1 ]]; then
             echo -e "🛑$LINENO : $fichier === Durée du fichier ${ROUGE}$DUREE${RAZ} secondes nulle ou pas reconnue."
-            leresultat=$(deplace_fichier "$fichier")
+#==>             leresultat=$(deplace_fichier "$fichier")
             echo -e "⚠️ $LINENO : Maintenant ici ${ORANGE}$leresultat${RAZ}"
             #leresultat=$(inject_duree "$fichier")
            [[ -n "$DEBUG" ]] && echo "⚡$LINENO : Le titre est maintenant ici ${ORANGE}$leresultat${RAZ}" >&2
@@ -247,7 +315,7 @@ while read -r fichier; do
             total_sec=$((total_sec + DUREE))
             #Plus lisible lecture $DUREE au format HMS
             laduree=$(convertir_S_en_HMS "$DUREE")
-            [[ -n "$AFFICHAGE" ]] && echo "$i🔹$TITRE -- $laduree " >&2
+            [[ -n "$AFFICHAGE" ]] && echo "$i🔹$ARTISTE - $TITRE - $laduree " >&2
         fi
         ((i++))
     fi

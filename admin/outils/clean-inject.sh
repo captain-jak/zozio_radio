@@ -3,8 +3,8 @@
 # Dossier contenant les MP3
 read -e -p "📂 Glissez-déposez le dossier ici (ou tapez son chemin) : " DIR_BASE
 
-GENRE="Divers"
-GENRE_ID3V2=77   # id3v2 -L  pour avoir la lise des catégories
+GENRE="Humour"
+GENRE_ID3V2=   # id3v2 -L  pour avoir la lise des catégories
 LALBUM=""
 TITRE_FORCE="True"
 ARTISTE_FORCE="True"
