@@ -8,7 +8,7 @@
 # cas N° 4 = duree est conforme
 #/-------------------------------------------------------------------------------------------------------------------------
 
-SEUIL_X=1500  # seuil supérieur en secondes
+SEUIL_X=99000  # seuil supérieur en secondes
 SEUIL_Y=30  # seuil inférieur en secondes
 #DIR_DUREE_TROP_LONG="/srv/Musique à découper" # Répertoire dans lequel sont deplacés les fichiers trop long
 DIR_DUREE_TROP_LONG="/media/enjoy/Data/musique/xx-NON-CONFORME"
@@ -23,8 +23,8 @@ DEBUG=""
 EFFACER_ORIGINE=false
 
 # Dossier contenant les MP3
-#read -e -p "📂 Glissez-déposez le dossier ici (ou tapez son chemin) : " DIR_BASE
-DIR_BASE="/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Humour/"
+read -e -p "📂 Glissez-déposez le dossier ici (ou tapez son chemin) : " DIR_BASE
+#DIR_BASE="/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Humour/"
 #DIR_BASE="/media/enjoy/Data/musique/zozio radio/Musique librairie/Humour"
 
 total_sec=0
