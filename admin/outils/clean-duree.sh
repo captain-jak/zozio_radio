@@ -6,6 +6,8 @@
 # cas N° 2 = durtee trop courte  ==> Avertissement  -- affichage avertissement
 # cas N° 3 = duree pas reconnue ou nulle  ==> Déplacement dans repertoire DIR_DUREE_TROP_LONG pour être retravaillé -- affichage en rouge
 # cas N° 4 = duree est conforme
+# syntaxe:
+# ./clean-duree.sh -e=true     # true autorise injection duree
 #/-------------------------------------------------------------------------------------------------------------------------
 
 SEUIL_X=99000  # seuil supérieur en secondes

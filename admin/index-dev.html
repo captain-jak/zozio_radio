@@ -1,26 +1,5 @@
 <!DOCTYPE html>
-<!--
-//-------------   Page écrite le  09.04.2026 ---------------
-=============================================================
-================       A FAIRE  ==================================
-      Reconstruire la playlist quand elle est changée dans l'écran d'administration
- ==>  IMPORTANT A FAIRE : il faudra mettre une fonction de contrôle de la conformité des titres de la playlist
-play list ""tous"
-find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique onair" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/tous.m3u"
- play list ""guillaume"
-find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique animateurs/guillaume" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/guillaume.m3u"
-play list ""jacques"
-find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/Musique animateurs/jacques" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/jacques.m3u"
 
-peut être redémarrer le serveur icecast ??
-OUI
-
- affichage de l'animateur
-
-
-=============================================================
-=============================================================
--->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -102,44 +81,49 @@ OUI
     let seconds = 0;
     let timer = null;
 
- async function triggerAction(action, playlist = "", extra = "") {
+async function triggerAction(action, playlist = "", extra = "") {
     const statusDiv = document.getElementById('status');
-    statusDiv.innerText = "Envoi de l'ordre...";
+    // On récupère tous les boutons pour les verrouiller
+    const buttons = document.querySelectorAll('button');
+    
+    statusDiv.innerText = "⏳ Exécution...";
+    buttons.forEach(b => b.disabled = true); // Verrouillage
 
     try {
         let url = `${API_URL}?action=${action}`;
         if (playlist) url += `&playlist=${encodeURIComponent(playlist)}`;
-        if (action === 'playlist') {
-            document.getElementById('active-host').innerText = playlist.toUpperCase();
-        }
         if (extra) url += extra; 
         
         const res = await fetch(url);
         const data = await res.text();
         
-        // Affichage de la confirmation (ex: "Animateur changé")
         statusDiv.innerText = data;
-        
-        // --- LOGIQUE DE MISE À JOUR ---
-        // Si on vient de passer un titre (skip) ou changer d'animateur,
-        // on attend 2.5 secondes pour laisser Liquidsoap mettre sa file à jour.
-        // Sinon, 500ms suffisent.
+
+        // Mise à jour visuelle immédiate si c'est un changement d'animateur
+        if (action === 'playlist') {
+            document.getElementById('active-host').innerText = playlist.toUpperCase();
+        }
+
+        // Délai de rafraîchissement de la file d'attente
         let delay = (action === 'skip' || action === 'playlist') ? 2500 : 500;
-        
         setTimeout(loadQueue, delay);
         
     } catch (e) {
-        console.error("Erreur commande:", e);
-        statusDiv.innerText = "Erreur de communication.";
+        statusDiv.innerText = "❌ Erreur de communication.";
+    } finally {
+        // On déverrouille les boutons après 1 seconde
+        setTimeout(() => buttons.forEach(b => b.disabled = false), 1000);
     }
 }
 
-function changePlaylist() {
+// Dans ton HTML, change l'appel du bouton par :
+// <button onclick="changePlaylist('reload')">🔄 RECHARGER LA PLAYLIST</button>
+
+function changePlaylist(forceAction = 'playlist') {
     const val = document.getElementById('playlist-select').value;
-    let val1 = "";
-    let val2 = "";
+    let val1 = ""; // Dossier
+    let val2 = ""; // Fichier M3U
     
-    // Détermination des dossiers selon le choix
     if (val === "jacques") {
         val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Jacques-onair";
         val2 = "/srv/www/chantoiseau-radio/admin/jacques.m3u";
@@ -151,11 +135,10 @@ function changePlaylist() {
         val2 = "/srv/www/chantoiseau-radio/admin/onair.m3u";
     }
          
-    // On construit les paramètres additionnels pour le PHP
     const extraParams = `&dir=${encodeURIComponent(val1)}&m3u=${encodeURIComponent(val2)}`;
     
-    // On appelle triggerAction(action, playlistValue, extraParams)
-    triggerAction('playlist', val, extraParams);
+    // On utilise forceAction pour savoir si on fait juste un reload ou un switch complet
+    triggerAction(forceAction, val, extraParams);
 }
 
 async function loadQueue() {

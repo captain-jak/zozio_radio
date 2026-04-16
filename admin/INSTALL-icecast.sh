@@ -76,7 +76,7 @@ wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+
 ########      Procédure de nommage des fichiers MP3        
 ###########################################################################################################
 Toit les fichiers sont obligatoirement au format
-Avant d'être injecté dans la radio, ils sont verifiées, et notamment leurs noms qui permettra de determiner
+Avant dêtre injecté dans la radio, ils sont verifiées, et notamment leurs noms qui permettra de determiner
 lors du passage à la radio:
 ARTISTE   -  TITRE -- ANNEE
 Le format du fichier est ARTISTE::TITRE::ANNEE  (le séparateur est "::"
@@ -94,12 +94,28 @@ radio.history -> Pour voir si historique s affiche.
 choix_playlist.get
 choix_playlist.set guillaume
 
-
--> Pour voir si le titre suivant est prêt.
-
 # voir lesz erreurs au demarrage liquidsoap
 sudo journalctl -u chantoiseau-radio.service -n 50 --no-pager
 
+sudo -u www-data bash ./clean-duree.sh
+# supprime TAG 
+sudo -u www-data mid3v2 --delete-frames=TXXX "
+
+# =========  github ===================
+# 1 - Initialisation du projet locale:
+cd /srv/www/chantoiseau-radio
+git init
+git add .
+git commit -m "Initial commit from Geany"
+# 2 - Link to GitHub
+git remote add origin https://github.com/captain-jak/zozio_radio.git
+git remote set-url origin git@github.com:captain-jak/zozio_radio.git
+
+git branch -M main
+# 3 - Push all the Code
+git add . && git commit -m "update 1.01d" && git push -u origin main
+# 3 - Push juste le fichier README.md
+git add README.md && git commit -m "update" && git push -u origin main
 
 
 
