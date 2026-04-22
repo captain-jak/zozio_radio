@@ -26,22 +26,20 @@ if ($fp) {
         return $data;
     }
 
-    // 1. Récupérer l'animateur
-    $auth_data = query_clean($fp, "choix_playlist.get");
+    // 1. Récupére ID de la playlist (tableau)
+    $id_raw = query_clean($fp, "choix_playlist.get");
+    // 2. On extrait la première ligne du tableau et on nettoie (on enlève les guillemets)
+    $id = !empty($id_raw) ? trim(str_replace('"', '', $id_raw[0])) : "tous";
+    // 3. On s'assure que l'ID n'est pas "END" ou vide, sinon on met "tous" par défaut
+    if ($id == "END" || empty($id)) {
+        $id = "tous";
+    }
+
+    // 2. Récupére animateur de la playlist
+    $auth_data  = query_clean($fp, "choix_playlist.get_name");
     $auth = !empty($auth_data) ? str_replace('"', '', $auth_data[0]) : "tous";
     $res["animateur"] = ucfirst($auth);
 
-    // 2. Déterminer l'ID pour le titre suivant
-    $id = "playlist";
-    if (strtolower($auth) == "guillaume") $id = "playlist.1";
-    if (strtolower($auth) == "jacques")   $id = "playlist.2";
-
-//// --- 3. Titre Actuel (Artiste + Titre) ---
-    //$meta = query_clean($fp, "icecast_out.metadata");
-    //$artist = "";
-    //$title = "";
-    
-    
     // --- 3. Titre Actuel (Artiste + Titre) ---
     $meta = query_clean($fp, "icecast_out.metadata");
     $artist = ""; $title = "";
@@ -56,13 +54,24 @@ if ($fp) {
     } else {
         $res["current"] = str_replace("::", " - ", $title);
     }
-
-    // --- 4. Titre Suivant ---
+    //------4. Titre Suivant------------ --------------------------------------------------------------------------------
     $next_data = query_clean($fp, $id . ".next");
     if (!empty($next_data)) {
-        $line = str_replace("[ready] ", "", $next_data[0]);
-        $filename = basename(str_replace(['"', '.mp3', '.MP3'], '', $line));
-        $res["next"] = str_replace("::", " - ", $filename);
+        foreach ($next_data as $line) {
+            $line = trim($line);
+            // On ignore les lignes vides ou les simples IDs numériques
+            if (empty($line) || is_numeric($line) || $line == "END") continue;
+            // On nettoie les résidus de Liquidsoap (guillemets, crochets, préfixes)
+            $clean_line = str_replace(['"', '[', ']', '[ready] '], '', $line);
+            // Si la ligne contient un slash ou .mp3, c'est notre fichier !
+            if (strpos($clean_line, '/') !== false || stripos($clean_line, '.mp3') !== false) {
+                $filename = basename($clean_line);
+                // Nettoyage final du nom
+                $filename = str_ireplace(['.mp3', '.wav', '_'], ['', '', ' '], $filename);
+                $res["next"] = str_replace("::", " - ", $filename);
+                break; // On a trouvé le titre, on arrête la boucle
+            }
+        }
     }
 
     // --- 5. Titre Précédent (Nouvelle commande !) ---

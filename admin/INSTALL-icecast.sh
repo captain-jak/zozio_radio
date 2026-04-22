@@ -3,7 +3,8 @@
 # Fabriquer la playlist
 find "/srv/zozio-radio/Musique onair" -type f -name "*.mp3" > "/srv/admin/chantoiseau-radio/onair.m3u"
 # mp3 ou ogg
-find "/srv/zozio-radio/Musique onair" -type f \( -name "*.mp3" -o -name "*.ogg" \) | sort > "/srv/admin/chantoiseau-radio/onair.m3u"
+find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-onair" -type f \( -name "*.mp3" -o -name "*.ogg" \) | sort > "/srv/www/chantoiseau-radio/admin/onair.m3u"
+find "/srv/www/nextcloud/data/enjoy/files/zozio-radio//musique-animateurs/Tosha-onair" -type f \( -name "*.mp3" -o -name "*.ogg" \) | sort > "/srv/www/chantoiseau-radio/admin/tosha.m3u"
 sudo systemctl restart chantoiseau-radio
 mpv http://zozio.uk &
 # Redémarrer icecast
@@ -99,7 +100,7 @@ sudo journalctl -u chantoiseau-radio.service -n 50 --no-pager
 
 sudo -u www-data bash ./clean-duree.sh
 # supprime TAG 
-sudo -u www-data mid3v2 --delete-frames=TXXX "
+sudo -u www-data mid3v2 --delete-frames=TXXX 
 
 # =========  github ===================
 # 1 - Initialisation du projet locale:
@@ -118,4 +119,52 @@ git add . && git commit -m "update 1.01d" && git push -u origin main
 git add README.md && git commit -m "update" && git push -u origin main
 
 
+###########################################################################################################
+########      compilatio n LiquidSoap     -  Ubuntu 22.04
+###########################################################################################################
+#------------- 1. Install System Dependencies
+sudo apt update
+sudo apt install -y build-essential m4 pkg-config libpcre3-dev libmad0-dev \
+libmp3lame-dev libogg-dev libvorbis-dev libflac-dev libtag1-dev \
+libsamplerate0-dev libssl-dev libcurl4-gnutls-dev
+#------  si erreur de dependance , downgrader:
+sudo apt install --allow-downgrades \
+libflac8=1.3.3-2ubuntu0.2 \
+libflac-dev \
+libmad0=0.15.1b-10ubuntu1 \
+libmad0-dev \
+libmp3lame0=3.100-3build2 \
+libmp3lame-dev
 
+#------------- 2. Install OPAM ---------
+# Install OPAM
+sudo apt install opam
+# Initialize OPAM (this takes a few minutes)
+# It creates a hidden folder ~/.opam
+opam init
+eval $(opam env)
+# Update the package list
+opam update
+#-------------   3. Install Liquidsoap via OPAM
+opam install liquidsoap
+#Pour installer une version spécifique
+opam install liquidsoap.2.4.3
+#To install the absolute latest (Development/Git) version:
+opam pin add liquidsoap --dev-repo
+
+
+#-------------4. Enabling Optional Features
+opam install ffmpeg ladspa cry samplerate taglib
+opam install lame mad ffmpeg liquidsoap
+
+#-------------5. System Integration (Systemd)
+sudo ln -sf $(which liquidsoap) /usr/bin/liquidsoap
+sudo nano /etc/systemd/system/chantoiseau-radio.service
+ExecStart=/home/votre_user/.opam/default/bin/liquidsoap home/enjoy/chantoiseau-radio.liq
+
+#-------------6. Verify the Installation
+liquidsoap --version
+#==========    DESINSTALLATION  ============
+opam remove liquidsoap liquidsoap-lang  lame mad ffmpeg liquidsoap
+opam unpin liquidsoap liquidsoap-lang
+opam update

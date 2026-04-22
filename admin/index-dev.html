@@ -47,9 +47,9 @@
         <option value="onair" selected>Musique pour tous (Random)</option>
         <option value="guillaume">Guillaume</option>
         <option value="jacques">Jacques</option>
+        <option value="tosha">Tosha</option>
     </select>
 </div>
-<button onclick="triggerAction('reload')">🔄 RECHARGER LA PLAYLIST</button>
 <div class="section">
     <div class="label">📢 Lancer un Jingle / Message</div>
     <div class="btn-grid">
@@ -74,8 +74,8 @@
      // sans proxy
     //const ICECAST_URL = "http://chantoiseau-radio.selfmicro.com:8000/status-json.xsl";
     // avec le proxy
-    const ICECAST_URL = "https://chantoiseau-radio.selfmicro.com/icecast/status-json.xsl";
-    const API_URL = "https://chantoiseau-radio.selfmicro.com/admin/radio_api_admin-dev.php";
+    const ICECAST_URL = "https://chantoiseau.selfmicro.com/icecast/status-json.xsl";
+    const API_URL = "https://chantoiseau.selfmicro.com/admin/radio_api_admin-dev.php";
     
     let currentTitle = "";
     let seconds = 0;
@@ -116,28 +116,31 @@ async function triggerAction(action, playlist = "", extra = "") {
     }
 }
 
-// Dans ton HTML, change l'appel du bouton par :
-// <button onclick="changePlaylist('reload')">🔄 RECHARGER LA PLAYLIST</button>
-
 function changePlaylist(forceAction = 'playlist') {
     const val = document.getElementById('playlist-select').value;
-    let val1 = ""; // Dossier
-    let val2 = ""; // Fichier M3U
+    let dir = ""; 
+    let m3u = ""; 
     
-    if (val === "jacques") {
-        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Jacques-onair";
-        val2 = "/srv/www/chantoiseau-radio/admin/jacques.m3u";
-    } else if (val === "guillaume") {
-        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Guillaume-onair";
-        val2 = "/srv/www/chantoiseau-radio/admin/guillaume.m3u";
-    } else {
-        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-onair";
-        val2 = "/srv/www/chantoiseau-radio/admin/onair.m3u";
+    // On définit les chemins selon le choix
+    switch(val) {
+        case "jacques":
+            dir = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Jacques-onair";
+            m3u = "/srv/www/chantoiseau-radio/admin/anime1.m3u";
+            break;
+        case "guillaume":
+            dir = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Guillaume-onair";
+            m3u = "/srv/www/chantoiseau-radio/admin/anime1.m3u";
+            break;
+        case "tosha":
+            dir = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Tosha-onair";
+            m3u = "/srv/www/chantoiseau-radio/admin/anime1.m3u";
+            break;
+        default:
+            dir = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-onair";
+            m3u = "/srv/www/chantoiseau-radio/admin/onair.m3u";
     }
          
-    const extraParams = `&dir=${encodeURIComponent(val1)}&m3u=${encodeURIComponent(val2)}`;
-    
-    // On utilise forceAction pour savoir si on fait juste un reload ou un switch complet
+    const extraParams = `&dir=${encodeURIComponent(dir)}&m3u=${encodeURIComponent(m3u)}`;
     triggerAction(forceAction, val, extraParams);
 }
 
