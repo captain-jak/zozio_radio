@@ -75,7 +75,7 @@ switch ($action) {
         }
 
         // --- LES ORDRES À LIQUIDSOAP ---
-        # memorisation du nom de l'animateur:
+        // memorisation du nom de l'animateur:
         fwrite($fp, "choix_playlist.set_name $playlist\n");
         usleep(100000);
         // On utilise maintenant $id_telnet qui est bien défini

@@ -37,113 +37,82 @@ function get_telnet_val($fp, $cmd) {
 
 switch ($action) {
     case 'skip':
+        // On skip la sortie finale pour être immédiat
         fwrite($fp, "icecast_out.skip\n");
-        $response_text = "⏭ Passage au titre suivant";
+        echo "⏭ Passage au titre suivant";
         break;
-
     case 'jingle':
         if (!empty($file)) {
-            // On envoie le chemin du fichier à la queue jingles via Telnet
+            // Utilisation du namespace défini dans le .liq
             fwrite($fp, "jingles.push $file\n");
-            $response_text = "📢 Jingle lancé : " . basename($file);
-        } else {
-            $response_text = "❌ Erreur : Aucun fichier spécifié";
+            echo "📢 Jingle lancé : " . basename($file);
         }
         break;
-
-    case 'reload':
-        // On récupère l'animateur actuel pour savoir quelle playlist recharger
-        $current = get_telnet_val($fp, "choix_playlist.get");
-        $id_to_reload = ($current == "onair" || $current == "tous" || empty($current)) ? "tous" : $current;
-        
-        fwrite($fp, $id_to_reload . ".reload\n");
-        $response_text = "🔄 Playlist '$id_to_reload' rechargée depuis le disque";
-        break;
-
- case 'playlist':
-    $playlist = $_GET['playlist'] ?? 'tous';
-    $dir = $_GET['dir'] ?? '';
-    $m3u = $_GET['m3u'] ?? '';
+    case 'playlist':
+        $playlist = $_GET['playlist'] ?? 'tous';
+        $dir = $_GET['dir'] ?? '';
+        $m3u = $_GET['m3u'] ?? '';
     
-    // 1. On définit id_telnet TOUT DE SUITE
-    $id_telnet = ($playlist == "onair" || $playlist == "tous") ? "tous" : $playlist;
-
-    $cleanList = []; 
-    if (!empty($dir) && !empty($m3u)) {
-        $files = shell_exec('find ' . escapeshellarg($dir) . ' -type f -name "*.mp3"');
-        $fileList = explode("\n", trim($files));
-
-        foreach ($fileList as $filePath) {
-            if (empty($filePath)) continue;
-            $check = shell_exec("ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 " . escapeshellarg($filePath));
-            if (is_numeric(trim($check))) {
-                $cleanList[] = $filePath;
+        // TRÈS IMPORTANT : Mapping pour faire le lien avec le .liq
+        $id_telnet = "tous";
+        if ($playlist == "jacques") $id_telnet = "anime1";
+        if ($playlist == "guillaume") $id_telnet = "anime1";
+        if ($playlist == "tosha") $id_telnet = "anime1";
+        
+        // ... (Logique de génération M3U via find/ffprobe inchangée)
+        $cleanList = []; 
+        if (!empty($dir) && !empty($m3u)) {
+            $files = shell_exec('find ' . escapeshellarg($dir) . ' -type f -name "*.mp3"');
+            $fileList = explode("\n", trim($files));
+            foreach ($fileList as $filePath) {
+                if (empty($filePath)) continue;
+                $check = shell_exec("ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 " . escapeshellarg($filePath));
+                if (is_numeric(trim($check))) {
+                    $cleanList[] = $filePath;
+                }
             }
+            file_put_contents($m3u, implode("\n", $cleanList));
         }
-        file_put_contents($m3u, implode("\n", $cleanList));
-    }
 
-    // --- LES ORDRES À LIQUIDSOAP ---
-    // On utilise maintenant $id_telnet qui est bien défini
-    fwrite($fp, "choix_playlist.set $playlist\n");
-    usleep(100000);
-
-    fwrite($fp, $id_telnet . ".reload\n");  // Ligne 94 corrigée
-    usleep(200000);
-
-    fwrite($fp, "radio.skip\n");            // Ligne 96 corrigée (ou $id_telnet.skip)
+        // --- LES ORDRES À LIQUIDSOAP ---
+        // memorisation du nom de l'animateur:
+        fwrite($fp, "choix_playlist.set_name $playlist\n");
+        usleep(100000);
+        // On utilise maintenant $id_telnet qui est bien défini
+        fwrite($fp, "choix_playlist.set $id_telnet\n");
+        usleep(100000);
+        // On recharge la playlist physique
+        fwrite($fp, $id_telnet . ".reload\n");  
+        usleep(200000);
+        // On force le passage au premier titre de la nouvelle playlist
+        fwrite($fp, "radio.skip\n"); 
     
-    $response_text = "✅ Playlist '" . ucfirst($playlist) . "' mise à jour (" . count($cleanList) . " titres)";
-    break;
-    
-    //case 'queue':
-        //header('Content-Type: application/json');
-        //$current = get_telnet_val($fp, "choix_playlist.get");
-        //$id_telnet = ($current == "onair" || $current == "tous" || empty($current)) ? "tous" : $current;
-
-        //fwrite($fp, "$id_telnet.next\n");
-        //$next_song = "";
-        //while ($line = fgets($fp, 512)) {
-            //$line = trim($line);
-            //if ($line == "END") break;
-            //if ($line != "" && $line != '""') $next_song = basename($line);
-        //}
-        //echo json_encode(["message" => $next_song ?: "Aucun titre suivant"]);
-        //exit;
-        
+        $response_text = "✅ Playlist '" . ucfirst($playlist) . "' mise à jour (" . count($cleanList) . " titres)";
+        break;
     case 'queue':
         header('Content-Type: application/json');
-        
         // 1. On demande à Liquidsoap qui est l'animateur en cours
         $current = get_telnet_val($fp, "choix_playlist.get");
-        
-        // 2. On traduit cet animateur en ID de playlist technique
-        // On force 'tous' si c'est vide ou si c'est 'onair'
-        if (empty($current) || $current == "onair" || $current == "tous") {
-            $id_telnet = "tous";
-        } else {
-            $id_telnet = $current;
-        }
     
-        // 3. On demande le prochain titre à la BONNE playlist
-        fwrite($fp, "$id_telnet.next\n");
-        
+        // On demande le titre suivant à la playlist active
+        fwrite($fp, "$current.next\n");
+    
         $next_song = "";
         while ($line = fgets($fp, 512)) {
             $line = trim($line);
             if ($line == "END") break;
-            // On ignore les messages d'erreur et les chaînes vides
-            if ($line != "" && $line != '""' && !str_contains($line, "ERROR")) {
+            if (!empty($line) && strpos($line, '/') !== false) {
+                // Nettoyage : On enlève le chemin et l'extension
                 $next_song = basename($line);
+                $next_song = str_replace(['.mp3', '_', '::'], ['', ' ', ' - '], $next_song);
+                break;
             }
         }
-    
-        // 4. Si c'est toujours vide, on met un message propre
-        if (empty($next_song)) $next_song = "Recherche du titre...";
-    
-        echo json_encode(["message" => $next_song]);
+        echo json_encode(["message" => $next_song ?: "Titres suivants en cours de préparation..."]);
         exit;
 }
+
+
 
 echo $response_text;
 fclose($fp);

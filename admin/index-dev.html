@@ -1,4 +1,17 @@
 <!DOCTYPE html>
+<!---------------------------------           Paramétrages        ------------------------------------------------------------------------------------
+Anmateurs -- ligne 65
+"onair"  => Musique pour tous
+"guillaume">Guillaume
+"jacques" =>Jacques
+"tosha"=>Tosha
+Jingles -- ligne 82
+'/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/Vagues_océaniques_douces.mp3'
+/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/rouge-gorge.mp3'
+'/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/Coq_vigoureux.mp3'
+'/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/intro.mp3'
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------->
 
 <html lang="fr">
 <head>
@@ -6,22 +19,26 @@
     <title>Régie - zozio</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #1a252f; color: #ecf0f1; padding: 20px; text-align: center;}
-        .container { max-width: 600px; margin: 0 auto; background: #2c3e50; padding: 25px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.4); }
+        .container { max-width: 650px; margin: 0 auto; background: #2c3e50; padding: 25px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.4); }
         h1 { color: #3498db; margin-bottom: 5px;}
         .section { background: rgba(0,0,0,0.15); padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: left; }
         .label { font-size: 0.8em; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px;}
         .value { font-weight: bold; color: #2ecc71; font-size: 1.2em; margin-bottom: 5px; word-wrap: break-word;}
-        
+       
         button { background: #e74c3c; color: white; border: none; padding: 12px 20px; font-size: 1em; border-radius: 6px; cursor: pointer; width: 100%; transition: 0.2s; font-weight: bold; margin-bottom: 5px;}
         button:hover { background: #c0392b; transform: translateY(-1px); }
         
         select { width: 100%; padding: 10px; border-radius: 6px; background: #34495e; color: white; border: 1px solid #5d6d7e; font-size: 1em; }
         .queue-list { font-family: monospace; font-size: 0.9em; background: #222; padding: 10px; border-radius: 5px; max-height: 80px; overflow-y: auto; color: #f1c40f; }
-        
-        /* Style pour les boutons Jingle */
+         
+         /* Style pour les boutons Jingle */
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .btn-jingle { background: #3498db; }
         .btn-jingle:hover { background: #2980b9; }
+       
+        /* Style spécifique Calendrier */
+        .day-col { background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px; text-align: center; }
+        .slot-item { background: #3498db; font-size: 10px; padding: 3px; margin: 3px 0; border-radius: 3px; cursor: pointer; }
         
         #status { margin-top: 15px; font-size: 0.9em; color: #f39c12; min-height: 1.2em; text-align: center;}
     </style>
@@ -30,186 +47,197 @@
 
 <div class="container">
     <h1>📻 Régie Chantoiseau</h1>
-    <p style="opacity: 0.5; margin-top: 0;">Console de contrôle</p>
+    
     <div class="section">
         <div class="label">🎵 En direct</div>
-            <div id="current-title" class="value">Chargement...</div>
-            <div class="label">⏱ Durée écoulée</div>
-            <div id="timer" style="color: #95a5a6; font-weight: bold;">00:00</div>
-        </div>
-<div class="section">
-    <div class="label">🎙️ Animateur Actuel</div>
-    <div id="active-host" class="value" style="color: #3498db;">Tous</div>
-</div>
-<div class="section">
-    <div class="label">📂 Sélection de l'animateur</div>
-    <select id="playlist-select" onchange="changePlaylist()">
-        <option value="onair" selected>Musique pour tous (Random)</option>
-        <option value="guillaume">Guillaume</option>
-        <option value="jacques">Jacques</option>
-        <option value="tosha">Tosha</option>
-    </select>
-</div>
-<div class="section">
-    <div class="label">📢 Lancer un Jingle / Message</div>
-    <div class="btn-grid">
-        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/Vagues_océaniques_douces.mp3'))">Océan !</button>
-        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/rouge-gorge.mp3'))">🎺 Forêt</button>
-        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/Coq_vigoureux.mp3'))">🌦 Campagne</button>
-        <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/intro.mp3'))">🎭 Intro</button>
+        <div id="current-title" class="value">Chargement...</div>
+        <div id="timer" style="color: #95a5a6; font-weight: bold;">00:00</div>
     </div>
-</div>
 
-        <div class="section">
-            <div class="label">⏭ Prochainement</div>
-            <div id="queue-box" class="queue-list">Chargement de la file...</div>
+    <div class="section">
+        <div class="label">🎙️ Animateur Actuel</div>
+        <div id="active-host" class="value" style="color: #3498db;">Tous</div>
+    </div>
+
+    <div class="section">
+        <div class="label">📂 Sélection de l'animateur</div>
+        <select id="playlist-select" onchange="changePlaylist()">
+            <option value="onair" selected>Musique pour tous (Random)</option>
+            <option value="guillaume">Guillaume</option>
+            <option value="jacques">Jacques</option>
+            <option value="tosha">Tosha</option>
+        </select>
+    </div>
+<!---------------------------------Programmation calendrier ------------------------------------------------------------------------------------>
+    <div class="section">
+        <div class="label">📅 Planning Hebdomadaire (Auto)</div>
+        <div id="calendar-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top:10px;">
+            </div>
+        <button onclick="savePlanning()" style="margin-top:10px; background:#2ecc71; height: 35px; padding: 5px;">💾 Enregistrer le planning</button>
+    </div>
+<!---------------------------------Jingles                              ------------------------------------------------------------------------------------>
+    <div class="section">
+        <div class="label">📢 Jingles</div>
+        <div class="btn-grid">
+            <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/Vagues_océaniques_douces.mp3'))">Océan !</button>
+            <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/rouge-gorge.mp3'))">🎺 Forêt</button>
+            <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/Coq_vigoureux.mp3'))">🌦 Campagne</button>
+            <button class="btn-jingle" onclick="triggerAction('jingle', '', '&file=' + encodeURIComponent('/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-librarie/Jingles/intro.mp3'))">🎭 Intro</button>
         </div>
+    </div>
 
-        <button onclick="triggerAction('skip')">⏭ PASSER AU TITRE SUIVANT</button>
-        
-        <div id="status"></div>
-    </div> 
+    <div class="section">
+        <div class="label">⏭ Prochainement</div>
+        <div id="queue-box" class="queue-list">Chargement...</div>
+    </div>
 
- <script>
-     // sans proxy
+    <button onclick="triggerAction('skip')">⏭ Passer au titre suivant</button>
+    <div id="status"></div>
+</div>
+<!---------------------------------             SRIPTS      --------------------------------------------------------------------------------------------------------->
+<script>
+    // sans proxy
     //const ICECAST_URL = "http://chantoiseau-radio.selfmicro.com:8000/status-json.xsl";
     // avec le proxy
     const ICECAST_URL = "https://chantoiseau.selfmicro.com/icecast/status-json.xsl";
-    const API_URL = "https://chantoiseau.selfmicro.com/admin/radio_api_admin-dev.php";
-    
+    const API_URL = "radio_api_admin-dev.php";
+    const PLANNING_API = "api_planning.php";
+
     let currentTitle = "";
     let seconds = 0;
     let timer = null;
+    let planning = {};
 
-async function triggerAction(action, playlist = "", extra = "") {
-    const statusDiv = document.getElementById('status');
-    // On récupère tous les boutons pour les verrouiller
-    const buttons = document.querySelectorAll('button');
-    
-    statusDiv.innerText = "⏳ Exécution...";
-    buttons.forEach(b => b.disabled = true); // Verrouillage
+    const days = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+    const hosts = { "tous": "Musique", "anime1": "Jacques", "anime1": "Guillaume" ,"anime1": "Tosha"};
 
-    try {
-        let url = `${API_URL}?action=${action}`;
-        if (playlist) url += `&playlist=${encodeURIComponent(playlist)}`;
-        if (extra) url += extra; 
-        
-        const res = await fetch(url);
-        const data = await res.text();
-        
-        statusDiv.innerText = data;
-
-        // Mise à jour visuelle immédiate si c'est un changement d'animateur
-        if (action === 'playlist') {
-            document.getElementById('active-host').innerText = playlist.toUpperCase();
+    // ----------------FONCTIONS PLANNING -------------------------------------------------------
+    async function loadPlanning() {
+        try {
+            const res = await fetch(PLANNING_API);
+            planning = await res.json();
+        } catch (e) {
+            console.error("Erreur chargement planning", e);
+            planning = {};
         }
-
-        // Délai de rafraîchissement de la file d'attente
-        let delay = (action === 'skip' || action === 'playlist') ? 2500 : 500;
-        setTimeout(loadQueue, delay);
-        
-    } catch (e) {
-        statusDiv.innerText = "❌ Erreur de communication.";
-    } finally {
-        // On déverrouille les boutons après 1 seconde
-        setTimeout(() => buttons.forEach(b => b.disabled = false), 1000);
+        renderCalendar();
     }
-}
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendar-grid');
+        grid.innerHTML = '';
+        days.forEach((dayName, index) => {
+            let dayDiv = document.createElement('div');
+            dayDiv.className = "day-col";
+            dayDiv.innerHTML = `<div style="font-weight:bold; font-size:0.7em; border-bottom:1px solid #555; margin-bottom:5px;">${dayName}</div>`;
+            
+            if (planning[index]) {
+                Object.keys(planning[index]).sort().forEach(time => {
+                    let slot = document.createElement('div');
+                    slot.className = "slot-item";
+                    slot.innerText = `${time} ${hosts[planning[index][time]] || planning[index][time]}`;
+                    slot.onclick = () => deleteSlot(index, time);
+                    dayDiv.appendChild(slot);
+                });
+            }
+
+            let addBtn = document.createElement('button');
+            addBtn.innerText = "+";
+            addBtn.style.cssText = "padding:2px; font-size:10px; background:#555; width:25px; margin: 0 auto;";
+            addBtn.onclick = () => addSlot(index);
+            dayDiv.appendChild(addBtn);
+            grid.appendChild(dayDiv);
+        });
+    }
+
+    function addSlot(dayIndex) {
+        const time = prompt("Heure (HH:mm) ?", "14:00");
+        const host = prompt("Qui ? (tous, anime1, anime2,anime3)", "anime1");
+        if (time && host) {
+            if (!planning[dayIndex]) planning[dayIndex] = {};
+            planning[dayIndex][time] = host;
+            renderCalendar();
+        }
+    }
+
+    function deleteSlot(dayIndex, time) {
+        if (confirm("Supprimer ce créneau ?")) {
+            delete planning[dayIndex][time];
+            renderCalendar();
+        }
+    }
+
+    async function savePlanning() {
+        try {
+            await fetch(PLANNING_API, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(planning)
+            });
+            alert("✅ Planning enregistré !");
+        } catch (e) { alert("❌ Erreur sauvegarde"); }
+    }
+
+    // ------------------------ AUTRES FONCTIONS (Trigger, Icecast, etc.) -----------------------------------------------
+    async function triggerAction(action, playlist = "", extra = "") {
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerText = "⏳ Exécution...";
+        try {
+            let url = `${API_URL}?action=${action}`;
+            if (playlist) url += `&playlist=${encodeURIComponent(playlist)}`;
+            if (extra) url += extra; 
+            const res = await fetch(url);
+            statusDiv.innerText = await res.text();
+            setTimeout(loadQueue, 1500);
+        } catch (e) { statusDiv.innerText = "❌ Erreur"; }
+    }
 
 function changePlaylist(forceAction = 'playlist') {
     const val = document.getElementById('playlist-select').value;
-    let dir = ""; 
-    let m3u = ""; 
+    let val1 = ""; // Dossier
+    let val2 = ""; // Fichier M3U
     
-    // On définit les chemins selon le choix
-    switch(val) {
-        case "jacques":
-            dir = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Jacques-onair";
-            m3u = "/srv/www/chantoiseau-radio/admin/anime1.m3u";
-            break;
-        case "guillaume":
-            dir = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Guillaume-onair";
-            m3u = "/srv/www/chantoiseau-radio/admin/anime1.m3u";
-            break;
-        case "tosha":
-            dir = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Tosha-onair";
-            m3u = "/srv/www/chantoiseau-radio/admin/anime1.m3u";
-            break;
-        default:
-            dir = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-onair";
-            m3u = "/srv/www/chantoiseau-radio/admin/onair.m3u";
+    if (val === "jacques") {
+        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Jacques-onair";
+        val2 = "/srv/www/chantoiseau-radio/admin/playlist/anime1.m3u";
+    } else if (val === "guillaume") {
+        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Guillaume-onair";
+        val2 = "/srv/www/chantoiseau-radio/admin/playlist/anime1.m3u";
+    } else if (val === "tosha") {
+        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Tosha-onair";
+        val2 = "/srv/www/chantoiseau-radio/admin/playlist/anime1.m3u";
+    } else {
+        val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-onair";
+        val2 = "/srv/www/chantoiseau-radio/admin/playlist/onair.m3u";
     }
          
-    const extraParams = `&dir=${encodeURIComponent(dir)}&m3u=${encodeURIComponent(m3u)}`;
+    const extraParams = `&dir=${encodeURIComponent(val1)}&m3u=${encodeURIComponent(val2)}`;
+    
+    // On utilise forceAction pour savoir si on fait juste un reload ou un switch complet
     triggerAction(forceAction, val, extraParams);
 }
 
-async function loadQueue() {
-    try {
-        const res = await fetch(`${API_URL}?action=queue&t=${Date.now()}`);
-        const text = await res.text(); // On récupère d'abord le texte brut
+    async function loadQueue() {
         try {
-            const data = JSON.parse(text); // On essaie de le transformer en JSON
-            document.getElementById('queue-box').innerText = data.message || "Aucun titre en attente.";
-        } catch (e) {
-            console.error("Le PHP n'a pas renvoyé de JSON valide :", text);
-            document.getElementById('queue-box').innerText = "Erreur format réponse.";
-        }
-    } catch (e) { 
-        document.getElementById('queue-box').innerText = "Serveur injoignable."; 
+            const res = await fetch(`${API_URL}?action=queue&t=${Date.now()}`);
+            const data = await res.json();
+            document.getElementById('queue-box').innerText = data.message;
+        } catch (e) { }
     }
-}
 
-    // Fonction pour décoder les entités HTML (ex: &#8217; -> ')
-    function decodeHtml(html) {
-        const txt = document.createElement("textarea");
-        txt.innerHTML = html;
-        return txt.value;
-    }
-    
     async function updateIcecast() {
         try {
             const res = await fetch(ICECAST_URL);
             const data = await res.json();
-            
-            let sources = data.icestats.source;
-            let mySource = null;
-    
-            if (Array.isArray(sources)) {
-                mySource = sources.find(s => s.listenurl && s.listenurl.includes('/radio.mp3'));
-            } else if (sources && sources.listenurl && sources.listenurl.includes('/radio.mp3')) {
-                mySource = sources;
+            let source = Array.isArray(data.icestats.source) ? data.icestats.source[0] : data.icestats.source;
+            if (source && source.title) {
+                document.getElementById('current-title').innerText = source.title;
             }
-    
-            if (mySource && mySource.title) {
-                // ON DÉCODE LE TITRE ICI
-                let cleanTitle = decodeHtml(mySource.title.trim());
-                
-                if (cleanTitle !== currentTitle) {
-                    currentTitle = cleanTitle;
-                    document.getElementById('current-title').innerText = currentTitle;
-                    
-                    // Reset du chrono...
-                    seconds = 0;
-                    document.getElementById('timer').innerText = "00:00";
-                    if(timer) clearInterval(timer);
-                    timer = setInterval(() => {
-                        seconds++;
-                        let m = Math.floor(seconds/60).toString().padStart(2,'0');
-                        let s = (seconds%60).toString().padStart(2,'0');
-                        document.getElementById('timer').innerText = `${m}:${s}`;
-                    }, 1000);
-                    
-                    loadQueue();
-                }
-            }
-        } catch (e) { 
-            console.error("Erreur Icecast:", e); 
-        }
+        } catch (e) {}
     }
-    // Lancement et répétition
-    setInterval(updateIcecast, 5000); // Rafraîchit toutes les 5 secondes
-    updateIcecast();
+
+    setInterval(updateIcecast, 5000);
+    loadPlanning();
     loadQueue();
 </script>
 </body>

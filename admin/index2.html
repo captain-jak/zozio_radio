@@ -80,41 +80,41 @@
     let currentTitle = "";
     let seconds = 0;
     let timer = null;
-
-async function triggerAction(action, playlist = "", extra = "") {
-    const statusDiv = document.getElementById('status');
-    // On récupère tous les boutons pour les verrouiller
-    const buttons = document.querySelectorAll('button');
+    // -------------------------------     FONCTIONS (Trigger, Icecast, etc.) -----------------------------------------------
+    async function triggerAction(action, playlist = "", extra = "") {
+        const statusDiv = document.getElementById('status');
+        // On récupère tous les boutons pour les verrouiller
+        const buttons = document.querySelectorAll('button');
+        
+        statusDiv.innerText = "⏳ Exécution...";
+        buttons.forEach(b => b.disabled = true); // Verrouillage
     
-    statusDiv.innerText = "⏳ Exécution...";
-    buttons.forEach(b => b.disabled = true); // Verrouillage
-
-    try {
-        let url = `${API_URL}?action=${action}`;
-        if (playlist) url += `&playlist=${encodeURIComponent(playlist)}`;
-        if (extra) url += extra; 
-        
-        const res = await fetch(url);
-        const data = await res.text();
-        
-        statusDiv.innerText = data;
-
-        // Mise à jour visuelle immédiate si c'est un changement d'animateur
-        if (action === 'playlist') {
-            document.getElementById('active-host').innerText = playlist.toUpperCase();
+        try {
+            let url = `${API_URL}?action=${action}`;
+            if (playlist) url += `&playlist=${encodeURIComponent(playlist)}`;
+            if (extra) url += extra; 
+            
+            const res = await fetch(url);
+            const data = await res.text();
+            
+            statusDiv.innerText = data;
+    
+            // Mise à jour visuelle immédiate si c'est un changement d'animateur
+            if (action === 'playlist') {
+                document.getElementById('active-host').innerText = playlist.toUpperCase();
+            }
+    
+            // Délai de rafraîchissement de la file d'attente
+            let delay = (action === 'skip' || action === 'playlist') ? 2500 : 500;
+            setTimeout(loadQueue, delay);
+            
+        } catch (e) {
+            statusDiv.innerText = "❌ Erreur de communication.";
+        } finally {
+            // On déverrouille les boutons après 1 seconde
+            setTimeout(() => buttons.forEach(b => b.disabled = false), 1000);
         }
-
-        // Délai de rafraîchissement de la file d'attente
-        let delay = (action === 'skip' || action === 'playlist') ? 2500 : 500;
-        setTimeout(loadQueue, delay);
-        
-    } catch (e) {
-        statusDiv.innerText = "❌ Erreur de communication.";
-    } finally {
-        // On déverrouille les boutons après 1 seconde
-        setTimeout(() => buttons.forEach(b => b.disabled = false), 1000);
     }
-}
 
 // Dans ton HTML, change l'appel du bouton par :
 // <button onclick="changePlaylist('reload')">🔄 RECHARGER LA PLAYLIST</button>
@@ -126,13 +126,13 @@ function changePlaylist(forceAction = 'playlist') {
     
     if (val === "jacques") {
         val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Jacques-onair";
-        val2 = "/srv/www/chantoiseau-radio/admin/jacques.m3u";
+        val2 = "/srv/www/chantoiseau-radio/admin/playlist/anime1.m3u";
     } else if (val === "guillaume") {
         val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Guillaume-onair";
-        val2 = "/srv/www/chantoiseau-radio/admin/guillaume.m3u";
+        val2 = "/srv/www/chantoiseau-radio/admin/playlist/anime1.m3u";
     } else {
         val1 = "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-onair";
-        val2 = "/srv/www/chantoiseau-radio/admin/onair.m3u";
+        val2 = "/srv/www/chantoiseau-radio/admin/playlist/onair.m3u";
     }
          
     const extraParams = `&dir=${encodeURIComponent(val1)}&m3u=${encodeURIComponent(val2)}`;

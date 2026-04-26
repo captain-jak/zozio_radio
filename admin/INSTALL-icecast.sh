@@ -59,11 +59,13 @@ sudo truncate -s 0 /srv/www/nextcloud/data/nextcloud.log
 convmv -r -f utf-8 -t utf-8 --nfc --notest /srv/zozio-radio
 convmv -r -f utf-8 -t utf-8 --nfc --notest .
 # Reconstruire la playlist
-find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-onair" -type f -name "*.mp3" > "/srv/www/chantoiseau-radio/admin/onair.m3u"
+sudo -u www-data sh -c 'find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-onair" -type f -name "*.mp3" > "/srv/www/chantoiseau-radio/admin/onair.m3u"'
 # playlist guillaume:
-find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Guillaume-onair" -type f -name "*.mp3" > "/srv/www/chantoiseau-radio/admin/guillaume.m3u"
+sudo -u www-data sh -c 'find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Guillaume-onair" -type f -name "*.mp3" > "/srv/www/chantoiseau-radio/admin/anime2.m3u"'
 # playlist jacques:
-find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Jacques-onair" -type f -name "*.mp3" > "/srv/www/chantoiseau-radio/admin/jacques.m3u"
+sudo -u www-data sh -c 'find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Jacques-onair" -type f -name "*.mp3" > "/srv/www/chantoiseau-radio/admin/anime1.m3u"'
+# playlist tosha:
+sudo -u www-data sh -c 'find "/srv/www/nextcloud/data/enjoy/files/zozio-radio/musique-animateurs/Tosha-onair" -type f -name "*.mp3" > "/srv/www/chantoiseau-radio/admin/anime3.m3u"'
 
 # Redémarrer la radio:
 sudo systemctl restart chantoiseau-radio
@@ -93,10 +95,14 @@ telnet localhost 1234
 choix_playlist.get -> Pour voir si animateur est bon.
 radio.history -> Pour voir si historique s affiche.
 choix_playlist.get
-choix_playlist.set guillaume
+choix_playlist.set anime1
 
 # voir lesz erreurs au demarrage liquidsoap
 sudo journalctl -u chantoiseau-radio.service -n 50 --no-pager
+# journal en continu:
+sudo journalctl -u chantoiseau-radio.service -f
+# debugage scheduler
+tail -f scheduler_debug.log 
 
 sudo -u www-data bash ./clean-duree.sh
 # supprime TAG 
@@ -114,7 +120,7 @@ git remote set-url origin git@github.com:captain-jak/zozio_radio.git
 
 git branch -M main
 # 3 - Push all the Code
-git add . && git commit -m "update 1.01d" && git push -u origin main
+git add . && git commit -m "calendrier1.03" && git push -u origin main
 # 3 - Push juste le fichier README.md
 git add README.md && git commit -m "update" && git push -u origin main
 

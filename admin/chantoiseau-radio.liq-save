@@ -1,67 +1,63 @@
 # --- CONFIGURATION SERVEUR ---
-settings.server.telnet := true
-settings.server.telnet.port := 1234
-settings.server.telnet.bind_addr := "127.0.0.1"
+settings.server.telnet.set(true)
+settings.server.telnet.port.set(1234)
+settings.server.telnet.bind_addr.set("127.0.0.1")
 
-# 1. --- VARIABLES ET JINGLES (On définit tout avant l'usage) ---
+# 1. --- VARIABLES ET SOURCES ---
 current_choice = ref("tous")
-jingles = request.queue(id="jingles")
+jingle_queue = request.queue(id="jingle_source")
+current_host_name = ref("Radio Zozio") # Nom par défaut
 
-# 2--- SOURCES ---
-tous = playlist(id="tous", mode="random_finite", prefetch=2, "/srv/www/chantoiseau-radio/admin/onair.m3u")
-guillaume = playlist(id="guillaume", mode="random_finite", prefetch=2, "/srv/www/chantoiseau-radio/admin/guillaume.m3u")
-jacques = playlist(id="jacques", mode="random_finite", prefetch=2, "/srv/www/chantoiseau-radio/admin/onair.m3u")
+tous = playlist(id='tous', prefetch=2, "/srv/www/chantoiseau-radio/admin/playlist/onair.m3u")
+anime1 = playlist(id='anime1', mode="random_finite", reload_mode="watch", prefetch=2, "/srv/www/chantoiseau-radio/admin/playlist/anime1.m3u")
+anime2 = playlist(id='anime2', mode="random_finite", reload_mode="watch", prefetch=2, "/srv/www/chantoiseau-radio/admin/playlist/anime2.m3u")
 
-# 3. LOGIQUE DE SWITCH (animateur)
+# 2. LOGIQUE DE SWITCH
+#track_sensitive=true, permet un switch lorsque le titre en couts est termine
 radio_switched = switch(id="radio", track_sensitive=false, [
-  ({ current_choice() == "guillaume" }, guillaume),
-  ({ current_choice() == "jacques" }, jacques),
+  ({ current_choice() == "anime1" }, anime1),
+  ({ current_choice() == "anime2" }, anime2),
   ({ true }, tous)
 ])
 
-# 4. --- MÉLANGE ET SÉCURITÉ ---
-radio_finale = smooth_add(normal=radio_switched, special=jingles)
+# 3. MÉLANGE ET SÉCURITÉ
+radio_finale = smooth_add(normal=radio_switched, special=jingle_queue)
 radio_finale = mksafe(radio_finale)
 
-
-# 5. --- MÉMOIRE ET NOTIFICATION ---
+# 4. NOTIFICATIONS METADATA
 last_track = ref("---")
 current_track = ref("---")
 
 def metadata_notification(m) =
-  #=> 1. L'ancien "actuel" devient le "précédent"
-  last_track.set(!current_track)
-  
-  #=> 2. On construit le nouveau "actuel"
+  last_track.set(current_track()) 
   art = m["artist"]
   tit = m["title"]
+  host = !current_host_name # On récupère le nom de l'animateur
+  # On construit un titre qui inclut l'animateur pour Icecast (optionnel)
+  # new_title = "[#{host}] #{art} - #{tit}"
   new_title = if art != "" and tit != "" then "#{art} - #{tit}" else "#{tit}" end
-  
-  #=> 3. On met à jour l'actuel pour le prochain coup
   current_track.set(new_title)
+  log("METADATA : Animateur [#{host}]") # Cette ligne va écrire dans ton journalctl
 end
 
- # 6.   On écoute les changements de métadonnées sur le flux final
-radio_finale.on_metadata(metadata_notification)
+#radio_finale.on_metadata(metadata_notification)
+radio_finale.on_metadata(synchronous=false, metadata_notification)
 
-# 7. --- ENREGISTREMENT COMMANDES ---
-#server.register(namespace="radio", "last", fun (_) -> !last_track)
+# 5. COMMANDES TELNET
+server.register(namespace="radio", "last", fun (_) -> last_track())
+server.register(namespace="radio", "current", fun (_) -> current_track())
+server.register(namespace="choix_playlist", "set", fun (v) -> begin current_choice.set(v) "OK" end)
+server.register(namespace="choix_playlist", "get", fun (_) -> current_choice())
+# Namespace dédié aux jingles
+server.register(namespace="jingles", "push", fun (v) -> begin jingle_queue.push(request.create(v)) "Jingle ajouté !" end)
+# Permet au PHP de mettre à jour le nom humain
+server.register(namespace="choix_playlist", "set_name", fun (v) -> begin current_host_name.set(v) "Nom mis a jour" end)
+# Permet au PHP de récupérer le nom humain
+server.register(namespace="choix_playlist", "get_name", fun (_) -> !current_host_name)
 
-# 8. --- ENREGISTREMENT COMMANDES TELNET ---
-server.register(namespace="radio", "last", fun (_) -> !last_track)
-server.register(namespace="choix_playlist", "set", fun (v) -> begin current_choice.set(v) "Animateur mis a jour !" end)
-server.register(namespace="choix_playlist", "get", fun (_) -> !current_choice)
-
-# 9 --- JINGLES ---
-jingles = request.queue(id="jingles")
-
-# 10 --- LA SORTIE ---
+# 6. SORTIE FFmpeg (Vérifie bien que ton libmp3lame est installé via opam)
 output.icecast(
-  %mp3(bitrate=128),
-  host="localhost",
-  port=8000,
-  password="Olicout5000",
-  mount="radio.mp3",
-  id="icecast_out",
-  radio_finale
+  %ffmpeg(format="mp3", %audio(codec="libmp3lame", b="128k")),
+  host="localhost", port=8000, password="Olicout5000", mount="radio.mp3",
+  id="icecast_out", radio_finale
 )
