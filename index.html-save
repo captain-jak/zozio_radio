@@ -16,6 +16,14 @@
         .info-block { border-top: 1px solid #eee; margin-top: 10px; padding-top: 5px; }
         .secondary-track { font-size: 0.85rem; color: #666; display: block; }
         audio { width: 100%; margin: 10px 0; }
+        /* Style pour le lecteur audio */
+        .lecteur-folk {
+        width: 100%;        /* Prend toute la largeur du parent */
+        max-width: 400px;   /* Limite la largeur */
+        border-radius: 20px; /* Arrondit les bords */
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2); /* Ajoute du relief */
+        filter: sepia(20%) hue-rotate(15deg); /* Modifie légèrement la couleur par défaut */
+}
     </style>
 </head>
 <body>
@@ -29,7 +37,7 @@
         <span id="current-playlist" style="font-weight: bold;">Chargement...</span>
     </div>
 
-    <audio controls src="http://chantoiseau-radio.selfmicro.com:8000/radio.mp3"></audio>
+    <audio class="lecteur-folk" controls src="http://chantoiseau.selfmicro.com:8000/radio.mp3"></audio>
     <div class="info-block">
         <div class="label">précédent ....</div>
         <span id="prev-track" class="secondary-track">---</span>
@@ -47,7 +55,7 @@
 
 <script>
     // URL de ton API PHP
-    const apiUrl = "http://chantoiseau-radio.selfmicro.com/radio_api-test.php";
+    const apiUrl = "http://chantoiseau.selfmicro.com/radio_api.php";
 
     async function updateMetadata() {
         try {
@@ -64,11 +72,11 @@
             let qui = data.animateur || data.playlist || "tous";
             qui = qui.toString().toLowerCase();
 
-            if (qui.includes("tous")) {
+            if (qui.includes("onair")) {
                 plEl.innerText = "Le meilleur des chants de zozios";
                 plEl.style.color = "#00b38f";
             } else {
-                plEl.innerText = "C'est " + qui.charAt(0).toUpperCase() + qui.slice(1) + " qui passe les disques";
+                plEl.innerText = "C'est " + qui.charAt(0).toUpperCase() + qui.slice(1) + " qui passe les disques" + "\nSpécial folklore amérique du Nord";
                 plEl.style.color = "#ff5722";
             }
 

@@ -4050,3 +4050,7 @@
 [2026-04-26 06:00:32] TELNET : Bascule vers: tous
 [2026-04-26 06:00:32] Ordres Telnet envoyés avec succès.
 [2026-04-26 06:00:32] RETOURNE : tous
+[2026-04-26 06:01:33] --- DEBUG : radio_scheduler.php ---
+[2026-04-26 06:01:33] ANCIEN: Musique | ACTUEL: Musique
+[2026-04-26 06:01:33] Pas de changement.
+[2026-04-26 06:01:33] RETOURNE : tous
